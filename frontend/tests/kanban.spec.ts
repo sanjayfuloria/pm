@@ -1,13 +1,41 @@
 import { expect, test } from "@playwright/test";
 
-test("loads the kanban board", async ({ page }) => {
+const login = async (page: Parameters<typeof test>[0]["page"]) => {
+  await page.getByLabel(/username/i).fill("user");
+  await page.getByLabel(/password/i).fill("password");
+  await page.getByRole("button", { name: /sign in/i }).click();
+};
+
+test("requires login before showing the board", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kanban Studio" })).not.toBeVisible();
+});
+
+test("shows error on invalid login", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel(/username/i).fill("wrong");
+  await page.getByLabel(/password/i).fill("credentials");
+  await page.getByRole("button", { name: /sign in/i }).click();
+
+  await expect(page.getByText("Invalid username or password.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kanban Studio" })).not.toBeVisible();
+});
+
+test("logs in, loads board, and can log out", async ({ page }) => {
+  await page.goto("/");
+  await login(page);
+
   await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
   await expect(page.locator('[data-testid^="column-"]')).toHaveCount(5);
+
+  await page.getByRole("button", { name: /log out/i }).click();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 });
 
 test("adds a card to a column", async ({ page }) => {
   await page.goto("/");
+  await login(page);
   const firstColumn = page.locator('[data-testid^="column-"]').first();
   await firstColumn.getByRole("button", { name: /add a card/i }).click();
   await firstColumn.getByPlaceholder("Card title").fill("Playwright card");
@@ -18,6 +46,7 @@ test("adds a card to a column", async ({ page }) => {
 
 test("moves a card between columns", async ({ page }) => {
   await page.goto("/");
+  await login(page);
   const card = page.getByTestId("card-card-1");
   const targetColumn = page.getByTestId("column-col-review");
   const cardBox = await card.boundingBox();

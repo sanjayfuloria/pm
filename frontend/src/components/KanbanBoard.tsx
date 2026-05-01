@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -13,11 +13,68 @@ import {
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
+import { getBoard, updateBoard } from "@/lib/boardApi";
 import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
 
-export const KanbanBoard = () => {
+type KanbanBoardProps = {
+  enableBackend?: boolean;
+  username?: string;
+};
+
+export const KanbanBoard = ({
+  enableBackend = false,
+  username = "user",
+}: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData>(() => initialData);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [backendConnected, setBackendConnected] = useState(false);
+  const [isLoadingBoard, setIsLoadingBoard] = useState(false);
+  const [isSavingBoard, setIsSavingBoard] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const boardRef = useRef(board);
+
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
+
+  useEffect(() => {
+    if (!enableBackend) {
+      setBackendConnected(false);
+      setErrorMessage(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadBoard = async () => {
+      setIsLoadingBoard(true);
+      setErrorMessage(null);
+      try {
+        const response = await getBoard(username);
+        if (isCancelled) {
+          return;
+        }
+        setBoard(response.state);
+        setBackendConnected(true);
+      } catch {
+        if (isCancelled) {
+          return;
+        }
+        setBackendConnected(false);
+        setErrorMessage("Backend unavailable. Using local board state.");
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingBoard(false);
+        }
+      }
+    };
+
+    void loadBoard();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [enableBackend, username]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -26,6 +83,33 @@ export const KanbanBoard = () => {
   );
 
   const cardsById = useMemo(() => board.cards, [board.cards]);
+
+  const applyBoardUpdate = async (
+    updater: (current: BoardData) => BoardData
+  ) => {
+    if (isSavingBoard) {
+      return;
+    }
+
+    const currentBoard = boardRef.current;
+    const nextBoard = updater(currentBoard);
+
+    if (!enableBackend || !backendConnected) {
+      setBoard(nextBoard);
+      return;
+    }
+
+    setIsSavingBoard(true);
+    setErrorMessage(null);
+    try {
+      const response = await updateBoard(username, nextBoard);
+      setBoard(response.state);
+    } catch {
+      setErrorMessage("Could not save board changes. Please retry.");
+    } finally {
+      setIsSavingBoard(false);
+    }
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
@@ -39,14 +123,14 @@ export const KanbanBoard = () => {
       return;
     }
 
-    setBoard((prev) => ({
+    void applyBoardUpdate((prev) => ({
       ...prev,
       columns: moveCard(prev.columns, active.id as string, over.id as string),
     }));
   };
 
   const handleRenameColumn = (columnId: string, title: string) => {
-    setBoard((prev) => ({
+    void applyBoardUpdate((prev) => ({
       ...prev,
       columns: prev.columns.map((column) =>
         column.id === columnId ? { ...column, title } : column
@@ -56,7 +140,7 @@ export const KanbanBoard = () => {
 
   const handleAddCard = (columnId: string, title: string, details: string) => {
     const id = createId("card");
-    setBoard((prev) => ({
+    void applyBoardUpdate((prev) => ({
       ...prev,
       cards: {
         ...prev.cards,
@@ -71,7 +155,7 @@ export const KanbanBoard = () => {
   };
 
   const handleDeleteCard = (columnId: string, cardId: string) => {
-    setBoard((prev) => {
+    void applyBoardUpdate((prev) => {
       return {
         ...prev,
         cards: Object.fromEntries(
@@ -130,6 +214,18 @@ export const KanbanBoard = () => {
                 {column.title}
               </div>
             ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--gray-text)]">
+            {isLoadingBoard ? <span>Loading board...</span> : null}
+            {isSavingBoard ? <span>Saving changes...</span> : null}
+            {enableBackend && !isLoadingBoard && !isSavingBoard ? (
+              <span>{backendConnected ? "Backend sync active" : "Local mode"}</span>
+            ) : null}
+            {errorMessage ? (
+              <span role="alert" className="text-red-600 normal-case tracking-normal">
+                {errorMessage}
+              </span>
+            ) : null}
           </div>
         </header>
 
