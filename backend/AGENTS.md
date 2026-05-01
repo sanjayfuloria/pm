@@ -9,6 +9,7 @@ This directory contains the FastAPI backend scaffold for the Project Management 
 	- GET /api/hello
 	- GET /api/board
 	- PUT /api/board
+	- POST /api/ai/connectivity
 	- Static site mount at / using backend/static/
 - static/index.html: Hello-world page that calls /api/hello from the browser.
 - pyproject.toml: Python dependencies and build metadata.
@@ -25,4 +26,4 @@ This directory contains the FastAPI backend scaffold for the Project Management 
 - In Docker, backend/static/ is populated from the frontend static export during image build, so / serves the Kanban app.
 - Backend board CRUD routes are implemented against Supabase Postgres via SUPABASE_DB_URL.
 - Startup migration verification is implemented.
-- AI features are not implemented yet.
+- AI connectivity route is implemented with Anthropic direct API and Claude Sonnet tier.

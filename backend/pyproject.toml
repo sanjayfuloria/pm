@@ -5,6 +5,7 @@ description = "FastAPI backend for the Project Management MVP"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "anthropic>=0.57.0,<1.0.0",
   "fastapi>=0.115.0,<1.0.0",
   "psycopg[binary]>=3.2.9,<4.0.0",
   "python-dotenv>=1.0.0,<2.0.0",

@@ -4,8 +4,8 @@ This document defines implementation phases, checklists, tests, and success crit
 
 ## Execution status (May 1, 2026)
 
-- Completed: Parts 1-7
-- In progress next: Part 8 (AI connectivity)
+- Completed: Parts 1-8
+- In progress next: Part 9 (structured AI board operations)
 - Detailed per-part progress and git status snapshots: `docs/PROGRESS.md`
 
 ## Global constraints
@@ -170,15 +170,15 @@ Success criteria
 Goal: prove Anthropic direct API integration using Claude Sonnet tier.
 
 Checklist
-- [ ] Add Anthropic SDK dependency and backend client wrapper.
-- [ ] Read ANTHROPIC_API_KEY from environment safely.
-- [ ] Add minimal AI route/service for connectivity check.
-- [ ] Implement deterministic test prompt path (for example 2+2).
+- [x] Add Anthropic SDK dependency and backend client wrapper.
+- [x] Read ANTHROPIC_API_KEY from environment safely.
+- [x] Add minimal AI route/service for connectivity check.
+- [x] Implement deterministic test prompt path (for example 2+2).
 
 Tests
-- [ ] Connectivity smoke test against Anthropic direct endpoint.
-- [ ] Unit tests with mocked Anthropic client.
-- [ ] Error-path test for missing/invalid API key.
+- [x] Connectivity smoke test against Anthropic direct endpoint.
+- [x] Unit tests with mocked Anthropic client.
+- [x] Error-path test for missing/invalid API key.
 
 Success criteria
 - Backend can complete a successful request to Claude Sonnet.

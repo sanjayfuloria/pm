@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_board_service, get_current_username
+from app.deps import get_ai_service, get_board_service, get_current_username
+from app.errors import AIProviderError
 from app.main import app
 from app.models import BoardResponse
 
@@ -33,6 +34,21 @@ class FakeBoardService:
             updated_at=datetime.now(timezone.utc),
         )
         return self.board
+
+
+class FakeAIService:
+    def connectivity_check(self, prompt: str):
+        assert prompt == "What is 2+2?"
+        return {
+            "model": "claude-sonnet-4-5-20250929",
+            "output_text": "4",
+        }
+
+
+class FailingAIService:
+    def connectivity_check(self, prompt: str):
+        assert prompt
+        raise AIProviderError("Anthropic request failed.")
 
 
 def test_get_board_route() -> None:
@@ -79,4 +95,41 @@ def test_put_board_validates_payload() -> None:
     response = client.put("/api/board", json={"invalid": "shape"})
 
     assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_ai_connectivity_route() -> None:
+    app.dependency_overrides[get_ai_service] = lambda: FakeAIService()
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/ai/connectivity",
+        json={"prompt": "What is 2+2?"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["output_text"] == "4"
+    assert payload["model"] == "claude-sonnet-4-5-20250929"
+
+    app.dependency_overrides.clear()
+
+
+def test_ai_connectivity_missing_api_key() -> None:
+    client = TestClient(app)
+    response = client.post("/api/ai/connectivity", json={"prompt": "ping"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "ANTHROPIC_API_KEY is not configured. AI API is unavailable."
+
+
+def test_ai_connectivity_provider_failure() -> None:
+    app.dependency_overrides[get_ai_service] = lambda: FailingAIService()
+
+    client = TestClient(app)
+    response = client.post("/api/ai/connectivity", json={"prompt": "ping"})
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Anthropic request failed."
+
     app.dependency_overrides.clear()

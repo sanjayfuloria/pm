@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from app.repository import BoardRecord
-from app.service import BoardService
+from app.service import AIService, BoardService
 
 
 class FakeRepo:
@@ -53,3 +53,18 @@ def test_update_board_increments_version() -> None:
     assert repo.last_update_payload == next_state
     assert board.state == next_state
     assert board.state_version == 2
+
+
+class FakeAIClient:
+    def connectivity_check(self, prompt: str) -> str:
+        assert prompt == "What is 2+2?"
+        return "4"
+
+
+def test_ai_service_returns_model_and_output() -> None:
+    service = AIService(client=FakeAIClient(), model="claude-sonnet-4-5-20250929")
+
+    response = service.connectivity_check("What is 2+2?")
+
+    assert response.model == "claude-sonnet-4-5-20250929"
+    assert response.output_text == "4"

@@ -54,7 +54,8 @@ Please review the docs/PLAN.md document before proceeding.
 
 ## Current status (May 1, 2026)
 
-- Parts 1-7 are implemented and committed.
+- Parts 1-8 are implemented and committed.
 - Backend and frontend are integrated for persisted board reads/writes through `/api/board`.
-- Part 8 (AI connectivity) has been kicked off in docs and is the next implementation target.
+- Backend AI connectivity is implemented at `/api/ai/connectivity` using Anthropic direct API and Claude Sonnet tier.
+- Part 9 (structured AI board operations) is the next implementation target.
 - Detailed per-part progress, including git status snapshots, is tracked in `docs/PROGRESS.md`.

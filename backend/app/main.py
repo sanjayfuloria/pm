@@ -8,16 +8,19 @@ from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 
+from app.ai import AnthropicConnectivityClient
 from app.config import Settings, load_settings
-from app.deps import get_board_service, get_current_username
-from app.errors import NotConfiguredError, NotFoundError, PersistenceError
-from app.models import BoardResponse, BoardUpdateRequest
+from app.deps import get_ai_service, get_board_service, get_current_username
+from app.errors import AIProviderError, NotConfiguredError, NotFoundError, PersistenceError
+from app.models import AIConnectivityRequest, AIConnectivityResponse, BoardResponse, BoardUpdateRequest
 from app.repository import BoardRepository
-from app.service import BoardService
+from app.service import AIService, BoardService
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
-    initialize_board_service(fastapi_app, load_settings())
+    settings = load_settings()
+    initialize_board_service(fastapi_app, settings)
+    initialize_ai_service(fastapi_app, settings)
     yield
 
 
@@ -46,6 +49,14 @@ async def handle_persistence(_request, exc: PersistenceError) -> JSONResponse:
     )
 
 
+@app.exception_handler(AIProviderError)
+async def handle_ai_provider_error(_request, exc: AIProviderError) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={"detail": str(exc)},
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def handle_validation(_request, exc: RequestValidationError) -> JSONResponse:
     return JSONResponse(
@@ -63,6 +74,18 @@ def initialize_board_service(fastapi_app: FastAPI, settings: Settings) -> None:
     migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
     repository.apply_migrations(migrations_dir=migrations_dir)
     fastapi_app.state.board_service = BoardService(repository)
+
+
+def initialize_ai_service(fastapi_app: FastAPI, settings: Settings) -> None:
+    if not settings.anthropic_api_key:
+        fastapi_app.state.ai_service = None
+        return
+
+    client = AnthropicConnectivityClient(
+        api_key=settings.anthropic_api_key,
+        model=settings.anthropic_model,
+    )
+    fastapi_app.state.ai_service = AIService(client=client, model=settings.anthropic_model)
 
 
 @api_router.get("/health")
@@ -95,6 +118,14 @@ def put_board(
     service: BoardService = Depends(get_board_service),
 ) -> BoardResponse:
     return service.update_board(username=username, state=payload.state)
+
+
+@api_router.post("/ai/connectivity", response_model=AIConnectivityResponse)
+def ai_connectivity(
+    payload: AIConnectivityRequest,
+    service: AIService = Depends(get_ai_service),
+) -> AIConnectivityResponse:
+    return service.connectivity_check(prompt=payload.prompt)
 
 
 app.include_router(api_router)

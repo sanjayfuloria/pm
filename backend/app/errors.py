@@ -12,3 +12,7 @@ class NotConfiguredError(BackendError):
 
 class PersistenceError(BackendError):
     """Raised for persistence/database failures."""
+
+
+class AIProviderError(BackendError):
+    """Raised when the AI provider call fails or returns invalid output."""

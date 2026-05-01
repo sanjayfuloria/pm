@@ -108,3 +108,23 @@ Expected proof for Part 8 completion
 - One successful backend call to Claude Sonnet through Anthropic direct API.
 - Deterministic endpoint response path for a simple prompt.
 - Clear 4xx/5xx handling for missing key and upstream failures.
+
+## Part 8 - AI connectivity (implemented)
+
+Progress
+- Added Anthropic SDK dependency and backend client wrapper.
+- Added AI settings (`ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL`) and service dependency wiring.
+- Implemented `POST /api/ai/connectivity` route returning model + output text.
+- Added mapped error handling for provider failures (`502`) and missing config (`503`).
+- Added mocked unit tests for AI client/service/routes and ran live smoke test.
+
+Validation
+- Backend tests: 14 passed.
+- Live connectivity smoke check: success (`CONNECTIVITY_OK`, response `4`).
+
+Git status snapshot
+- Added: backend/app/ai.py, backend/tests/test_ai_client.py
+- Modified: backend/app/main.py, backend/app/config.py, backend/app/deps.py, backend/app/errors.py, backend/app/models.py, backend/app/service.py
+- Modified: backend/tests/test_routes.py, backend/tests/test_service.py
+- Modified: backend/pyproject.toml, backend/README.md, .env.example
+- Modified: docs/PLAN.md, docs/PROGRESS.md, AGENTS.md, backend/AGENTS.md
