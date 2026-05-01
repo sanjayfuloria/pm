@@ -88,3 +88,23 @@ Git status snapshot
 ## Current consolidated git status
 
 At the time of preparing this log, the working tree includes the cumulative changes above across Parts 1-7.
+
+## Part 8 kickoff - AI connectivity
+
+Objective
+- Establish Anthropic direct API connectivity in backend using Claude Sonnet tier only.
+
+Initial tasks
+- Add Anthropic SDK dependency to backend project.
+- Implement a minimal backend AI client wrapper and connectivity route.
+- Load and validate ANTHROPIC_API_KEY from environment.
+- Add mocked unit tests for success and error paths.
+
+Definition of ready to proceed
+- API key available in local .env for manual smoke test.
+- Existing backend tests remain green before integrating AI code.
+
+Expected proof for Part 8 completion
+- One successful backend call to Claude Sonnet through Anthropic direct API.
+- Deterministic endpoint response path for a simple prompt.
+- Clear 4xx/5xx handling for missing key and upstream failures.
