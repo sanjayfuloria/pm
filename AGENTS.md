@@ -51,3 +51,10 @@ A working MVP of the frontend has been built and is already in frontend. This is
 
 All documents for planning and executing this project will be in the docs/ directory.
 Please review the docs/PLAN.md document before proceeding.
+
+## Current status (May 1, 2026)
+
+- Parts 1-7 are implemented and committed.
+- Backend and frontend are integrated for persisted board reads/writes through `/api/board`.
+- Part 8 (AI connectivity) has been kicked off in docs and is the next implementation target.
+- Detailed per-part progress, including git status snapshots, is tracked in `docs/PROGRESS.md`.

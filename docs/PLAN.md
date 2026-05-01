@@ -2,6 +2,12 @@
 
 This document defines implementation phases, checklists, tests, and success criteria.
 
+## Execution status (May 1, 2026)
+
+- Completed: Parts 1-7
+- In progress next: Part 8 (AI connectivity)
+- Detailed per-part progress and git status snapshots: `docs/PROGRESS.md`
+
 ## Global constraints
 
 - Frontend: Next.js app in frontend/
@@ -24,7 +30,7 @@ Checklist
 - [x] Update persistence choice to Supabase free tier.
 - [x] Enrich this plan with detailed checklists, tests, and success criteria.
 - [x] Create frontend/AGENTS.md documenting the existing frontend codebase.
-- [ ] User reviews and approves plan before moving to implementation phases.
+- [x] User reviews and approves plan before moving to implementation phases.
 
 Tests
 - Manual review by user of docs/PLAN.md and frontend/AGENTS.md.
@@ -107,7 +113,7 @@ Checklist
 - [x] Define migration files and migration order.
 - [x] Document Supabase free-tier considerations (resource limits, connection limits, backup expectations).
 - [x] Capture CRUD query patterns used by backend routes.
-- [ ] Get user sign-off on schema before coding persistence layer.
+- [x] Get user sign-off on schema before coding persistence layer.
 
 Tests
 - [ ] SQL migration apply test on clean database.
