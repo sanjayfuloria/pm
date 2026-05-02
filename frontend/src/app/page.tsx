@@ -39,9 +39,13 @@ export default function Home() {
 
   const handleLogin = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalizedUsername = username.trim().toLowerCase();
+    const compactCredential = username.trim().toLowerCase();
+    const compactParts = compactCredential.split("/");
+    const normalizedUsername = compactParts[0]?.trim() ?? "";
+    const normalizedPassword =
+      password.trim() || compactParts.slice(1).join("/").trim();
     const expectedPassword = DEMO_CREDENTIALS[normalizedUsername];
-    const isValid = expectedPassword !== undefined && password === expectedPassword;
+    const isValid = expectedPassword !== undefined && normalizedPassword === expectedPassword;
 
     if (!isValid) {
       setError("Invalid username or password.");
@@ -83,6 +87,9 @@ export default function Home() {
           </p>
           <p className="mt-2 text-xs text-[var(--gray-text)]">
             Accounts: user/password, teacher/password, student1/password, student2/password
+          </p>
+          <p className="mt-1 text-xs text-[var(--gray-text)]">
+            You can also paste a compact value like teacher/password in Username.
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleLogin}>
