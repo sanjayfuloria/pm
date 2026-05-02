@@ -8,6 +8,7 @@ const SESSION_KEY = "pm-authenticated";
 const SESSION_USERNAME_KEY = "pm-authenticated-username";
 
 const DEMO_CREDENTIALS: Record<string, string> = {
+  user: "password",
   teacher: "password",
   student1: "password",
   student2: "password",
@@ -81,7 +82,7 @@ export default function Home() {
             Use the demo credentials to access your Kanban board.
           </p>
           <p className="mt-2 text-xs text-[var(--gray-text)]">
-            Accounts: teacher/password, student1/password, student2/password
+            Accounts: user/password, teacher/password, student1/password, student2/password
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleLogin}>

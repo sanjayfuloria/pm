@@ -126,6 +126,7 @@ cp -R out/. ../backend/static/
 
 ## Demo logins
 
+- `user` / `password`
 - `teacher` / `password`
 - `student1` / `password`
 - `student2` / `password`
@@ -242,6 +243,23 @@ set -a
 source /Users/sanjayfuloria/projects/pm/.env
 set +a
 /Users/sanjayfuloria/projects/pm/backend/.venv/bin/uvicorn app.main:app --app-dir /Users/sanjayfuloria/projects/pm/backend --host 127.0.0.1 --port 8010
+```
+
+### Docker container restarts with "uvicorn: no such file or directory"
+
+Cause: a host virtual environment was copied into the image and replaced container binaries.
+
+Fix: ensure `.dockerignore` excludes local virtualenv paths:
+
+```text
+backend/.venv
+.venv
+```
+
+Then rebuild:
+
+```bash
+docker compose up --build -d
 ```
 
 ## Project planning docs
