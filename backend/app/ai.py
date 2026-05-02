@@ -38,6 +38,34 @@ class AnthropicConnectivityClient:
     def connectivity_check(self, prompt: str) -> str:
         return self._request_text(prompt=prompt, max_tokens=64)
 
+    def _try_parse_payload(self, raw_text: str) -> dict | None:
+        candidates: list[str] = [raw_text.strip()]
+
+        text = raw_text.strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            if len(lines) >= 3:
+                fence_payload = "\n".join(lines[1:-1]).strip()
+                if fence_payload:
+                    candidates.append(fence_payload)
+
+        first_open = text.find("{")
+        last_close = text.rfind("}")
+        if first_open != -1 and last_close != -1 and first_open < last_close:
+            candidates.append(text[first_open : last_close + 1].strip())
+
+        for candidate in candidates:
+            if not candidate:
+                continue
+            try:
+                payload = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict):
+                return payload
+
+        return None
+
     def structured_board_response(self, prompt: str, board_context: str) -> dict:
         schema_prompt = (
             "You are helping with a Kanban board. "
@@ -55,17 +83,14 @@ class AnthropicConnectivityClient:
 
         raw_text = self._request_text(prompt=schema_prompt, max_tokens=512)
 
-        try:
-            payload = json.loads(raw_text)
-        except json.JSONDecodeError as exc:
-            raise AIProviderError("Anthropic response was not valid JSON.") from exc
-
-        if not isinstance(payload, dict):
-            raise AIProviderError("Anthropic JSON response must be an object.")
+        payload = self._try_parse_payload(raw_text)
+        if payload is None:
+            # Graceful fallback when model wraps JSON in prose or returns plain text.
+            return {"message": raw_text, "actions": []}
 
         message = payload.get("message")
         actions = payload.get("actions")
         if not isinstance(message, str) or not isinstance(actions, list):
-            raise AIProviderError("Anthropic JSON response did not match expected schema.")
+            return {"message": raw_text, "actions": []}
 
         return payload

@@ -26,6 +26,26 @@ class FakeMessagesAPI:
     def create(self, **_kwargs):
         if self.behavior == "success":
             return FakeResponse([FakeTextBlock("4")])
+        if self.behavior == "structured":
+            return FakeResponse(
+                [
+                    FakeTextBlock(
+                        '{"message":"Done","actions":[{"type":"move_card","card_title":"A","from_column_title":"Backlog","to_column_title":"Review","details":null}]}'
+                    )
+                ]
+            )
+        if self.behavior == "structured_fenced":
+            return FakeResponse(
+                [
+                    FakeTextBlock(
+                        "```json\n"
+                        '{"message":"Done","actions":[{"type":"move_card","card_title":"A","from_column_title":"Backlog","to_column_title":"Review","details":null}]}'
+                        "\n```"
+                    )
+                ]
+            )
+        if self.behavior == "invalid_json":
+            return FakeResponse([FakeTextBlock("I can help move cards. Move A to Review.")])
         if self.behavior == "empty":
             return FakeResponse([])
         raise RuntimeError("provider failed")
@@ -67,3 +87,33 @@ def test_connectivity_client_maps_provider_error(monkeypatch) -> None:
 
     with pytest.raises(AIProviderError, match="Anthropic request failed"):
         client.connectivity_check("What is 2+2?")
+
+
+def test_structured_board_response_parses_plain_json(monkeypatch) -> None:
+    install_fake_anthropic(monkeypatch, behavior="structured")
+    client = AnthropicConnectivityClient(api_key="test-key", model="claude-sonnet-4-5-20250929")
+
+    payload = client.structured_board_response("Move card", '{"columns":[]}')
+
+    assert payload["message"] == "Done"
+    assert len(payload["actions"]) == 1
+
+
+def test_structured_board_response_parses_fenced_json(monkeypatch) -> None:
+    install_fake_anthropic(monkeypatch, behavior="structured_fenced")
+    client = AnthropicConnectivityClient(api_key="test-key", model="claude-sonnet-4-5-20250929")
+
+    payload = client.structured_board_response("Move card", '{"columns":[]}')
+
+    assert payload["message"] == "Done"
+    assert len(payload["actions"]) == 1
+
+
+def test_structured_board_response_graceful_fallback(monkeypatch) -> None:
+    install_fake_anthropic(monkeypatch, behavior="invalid_json")
+    client = AnthropicConnectivityClient(api_key="test-key", model="claude-sonnet-4-5-20250929")
+
+    payload = client.structured_board_response("Move card", '{"columns":[]}')
+
+    assert payload["message"] == "I can help move cards. Move A to Review."
+    assert payload["actions"] == []
