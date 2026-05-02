@@ -1,7 +1,8 @@
 from pathlib import Path
 from contextlib import asynccontextmanager
+import json
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi import status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse
@@ -12,7 +13,7 @@ from app.ai import AnthropicConnectivityClient
 from app.config import Settings, load_settings
 from app.deps import get_ai_service, get_board_service, get_current_username
 from app.errors import AIProviderError, NotConfiguredError, NotFoundError, PersistenceError
-from app.models import AIConnectivityRequest, AIConnectivityResponse, BoardResponse, BoardUpdateRequest
+from app.models import AIChatRequest, AIChatResponse, AIConnectivityRequest, AIConnectivityResponse, BoardResponse, BoardUpdateRequest
 from app.repository import BoardRepository
 from app.service import AIService, BoardService
 
@@ -59,9 +60,10 @@ async def handle_ai_provider_error(_request, exc: AIProviderError) -> JSONRespon
 
 @app.exception_handler(RequestValidationError)
 async def handle_validation(_request, exc: RequestValidationError) -> JSONResponse:
+    detail = [{k: v for k, v in item.items() if k != "input"} for item in exc.errors()]
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        content={"detail": exc.errors()},
+        content={"detail": detail},
     )
 
 
@@ -123,9 +125,158 @@ def put_board(
 @api_router.post("/ai/connectivity", response_model=AIConnectivityResponse)
 def ai_connectivity(
     payload: AIConnectivityRequest,
+    request: Request,
+    username: str = Depends(get_current_username),
     service: AIService = Depends(get_ai_service),
 ) -> AIConnectivityResponse:
-    return service.connectivity_check(prompt=payload.prompt)
+    board_context = None
+    board_service = getattr(request.app.state, "board_service", None)
+    if board_service is not None:
+        try:
+            board = board_service.get_board(username=username)
+            cards_by_id = board.state.get("cards", {})
+            columns = []
+            for column in board.state.get("columns", []):
+                card_titles = []
+                for card_id in column.get("cardIds", []):
+                    card = cards_by_id.get(card_id)
+                    if isinstance(card, dict):
+                        card_titles.append(card.get("title", card_id))
+                columns.append(
+                    {
+                        "id": column.get("id"),
+                        "title": column.get("title"),
+                        "cards": card_titles,
+                    }
+                )
+
+            board_context = json.dumps(
+                {
+                    "board_title": board.title,
+                    "state_version": board.state_version,
+                    "columns": columns,
+                },
+                ensure_ascii=True,
+            )
+        except Exception:
+            board_context = None
+
+    return service.connectivity_check(prompt=payload.prompt, board_context=board_context)
+
+
+def _normalize_label(value: str) -> str:
+    return (
+        value.strip()
+        .lower()
+        .replace("\"", "")
+        .replace("'", "")
+        .replace(" card", "")
+        .replace(" column", "")
+        .replace("  ", " ")
+    )
+
+
+@api_router.post("/ai/chat", response_model=AIChatResponse)
+def ai_chat(
+    payload: AIChatRequest,
+    username: str = Depends(get_current_username),
+    board_service: BoardService = Depends(get_board_service),
+    ai_service: AIService = Depends(get_ai_service),
+) -> AIChatResponse:
+    board = board_service.get_board(username=username)
+    cards_by_id = board.state.get("cards", {})
+    columns = board.state.get("columns", [])
+
+    board_context = json.dumps(
+        {
+            "board_title": board.title,
+            "state_version": board.state_version,
+            "columns": [
+                {
+                    "id": column.get("id"),
+                    "title": column.get("title"),
+                    "cards": [cards_by_id.get(card_id, {}).get("title", card_id) for card_id in column.get("cardIds", [])],
+                }
+                for column in columns
+            ],
+        },
+        ensure_ascii=True,
+    )
+
+    output_text, actions = ai_service.plan_board_actions(prompt=payload.prompt, board_context=board_context)
+
+    next_state = {
+        "columns": [dict(column) for column in columns],
+        "cards": dict(cards_by_id),
+    }
+    applied_actions: list[str] = []
+
+    for action in actions:
+        action_type = action.type
+        card_title = action.card_title
+
+        if action_type == "move_card":
+            from_column = next(
+                (column for column in next_state["columns"] if _normalize_label(column.get("title", "")) == _normalize_label(action.from_column_title or "")),
+                None,
+            )
+            to_column = next(
+                (column for column in next_state["columns"] if _normalize_label(column.get("title", "")) == _normalize_label(action.to_column_title or "")),
+                None,
+            )
+            card = next(
+                (card for card in next_state["cards"].values() if _normalize_label(card.get("title", "")) == _normalize_label(card_title)),
+                None,
+            )
+            if not from_column or not to_column or not card:
+                continue
+
+            card_id = card["id"]
+            if card_id in from_column.get("cardIds", []):
+                from_column["cardIds"] = [item for item in from_column.get("cardIds", []) if item != card_id]
+            if card_id not in to_column.get("cardIds", []):
+                to_column["cardIds"].append(card_id)
+            applied_actions.append(
+                f"Moved '{card.get('title')}' from '{from_column.get('title')}' to '{to_column.get('title')}'"
+            )
+
+        if action_type == "create_card":
+            to_column = next(
+                (column for column in next_state["columns"] if _normalize_label(column.get("title", "")) == _normalize_label(action.to_column_title or "")),
+                None,
+            )
+            if not to_column:
+                continue
+            card_id = f"card-ai-{len(next_state['cards']) + 1}"
+            next_state["cards"][card_id] = {
+                "id": card_id,
+                "title": card_title,
+                "details": action.details or "Added by AI.",
+            }
+            to_column["cardIds"].append(card_id)
+            applied_actions.append(f"Created '{card_title}' in '{to_column.get('title')}'")
+
+        if action_type == "edit_card":
+            card = next(
+                (card for card in next_state["cards"].values() if _normalize_label(card.get("title", "")) == _normalize_label(card_title)),
+                None,
+            )
+            if not card:
+                continue
+            if action.details:
+                card["details"] = action.details
+                applied_actions.append(f"Edited '{card.get('title')}'")
+
+    updated_board = board
+    if applied_actions:
+        updated_board = board_service.update_board(username=username, state=next_state)
+
+    return AIChatResponse(
+        model=ai_service.model_name,
+        output_text=output_text,
+        applied_actions=applied_actions,
+        board_state_version=updated_board.state_version,
+    )
 
 
 app.include_router(api_router)

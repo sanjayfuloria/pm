@@ -6,6 +6,10 @@ vi.mock("@/components/KanbanBoard", () => ({
   KanbanBoard: () => <h1>Kanban Studio</h1>,
 }));
 
+vi.mock("@/components/AIChatSidebar", () => ({
+  AIChatSidebar: () => <aside>AI Chat</aside>,
+}));
+
 const signIn = async (username: string, password: string) => {
   await userEvent.type(screen.getByLabelText(/username/i), username);
   await userEvent.type(screen.getByLabelText(/password/i), password);

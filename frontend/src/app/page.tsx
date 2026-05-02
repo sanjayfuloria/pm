@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { AIChatSidebar } from "@/components/AIChatSidebar";
 import { KanbanBoard } from "@/components/KanbanBoard";
 
 const SESSION_KEY = "pm-authenticated";
@@ -14,6 +15,7 @@ export default function Home() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [boardRefreshToken, setBoardRefreshToken] = useState(0);
 
   useEffect(() => {
     const hasSession = window.sessionStorage.getItem(SESSION_KEY) === "true";
@@ -113,7 +115,15 @@ export default function Home() {
           Log out
         </button>
       </div>
-      <KanbanBoard enableBackend username={DUMMY_USERNAME} />
+      <KanbanBoard
+        key={boardRefreshToken}
+        enableBackend
+        username={DUMMY_USERNAME}
+      />
+      <AIChatSidebar
+        username={DUMMY_USERNAME}
+        onBoardMutated={() => setBoardRefreshToken((token) => token + 1)}
+      />
     </div>
   );
 }

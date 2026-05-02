@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -28,3 +29,22 @@ class AIConnectivityRequest(BaseModel):
 class AIConnectivityResponse(BaseModel):
     model: str
     output_text: str
+
+
+class AIChatRequest(BaseModel):
+    prompt: str = Field(min_length=1, description="User chat prompt")
+
+
+class AIBoardAction(BaseModel):
+    type: Literal["move_card", "create_card", "edit_card"]
+    card_title: str
+    from_column_title: str | None = None
+    to_column_title: str | None = None
+    details: str | None = None
+
+
+class AIChatResponse(BaseModel):
+    model: str
+    output_text: str
+    applied_actions: list[str] = Field(default_factory=list)
+    board_state_version: int

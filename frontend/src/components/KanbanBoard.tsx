@@ -32,6 +32,8 @@ export const KanbanBoard = ({
   const [isSavingBoard, setIsSavingBoard] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const boardRef = useRef(board);
+  const isPersistingRef = useRef(false);
+  const queuedBoardRef = useRef<BoardData | null>(null);
 
   useEffect(() => {
     boardRef.current = board;
@@ -84,31 +86,48 @@ export const KanbanBoard = ({
 
   const cardsById = useMemo(() => board.cards, [board.cards]);
 
-  const applyBoardUpdate = async (
-    updater: (current: BoardData) => BoardData
-  ) => {
-    if (isSavingBoard) {
-      return;
-    }
-
-    const currentBoard = boardRef.current;
-    const nextBoard = updater(currentBoard);
-
+  const persistBoard = async (nextBoard: BoardData) => {
     if (!enableBackend || !backendConnected) {
-      setBoard(nextBoard);
       return;
     }
 
+    queuedBoardRef.current = nextBoard;
+    if (isPersistingRef.current) {
+      return;
+    }
+
+    isPersistingRef.current = true;
     setIsSavingBoard(true);
     setErrorMessage(null);
+
     try {
-      const response = await updateBoard(username, nextBoard);
-      setBoard(response.state);
+      while (queuedBoardRef.current) {
+        const stateToPersist = queuedBoardRef.current;
+        queuedBoardRef.current = null;
+        await updateBoard(username, stateToPersist);
+      }
     } catch {
       setErrorMessage("Could not save board changes. Please retry.");
     } finally {
+      isPersistingRef.current = false;
       setIsSavingBoard(false);
     }
+  };
+
+  const applyBoardUpdate = async (
+    updater: (current: BoardData) => BoardData
+  ) => {
+    const currentBoard = boardRef.current;
+    const nextBoard = updater(currentBoard);
+
+    // Optimistic updates keep drag and edits responsive while persistence runs in the background.
+    setBoard(nextBoard);
+
+    if (!enableBackend || !backendConnected) {
+      return;
+    }
+
+    await persistBoard(nextBoard);
   };
 
   const handleDragStart = (event: DragStartEvent) => {

@@ -10,6 +10,7 @@ This directory contains the FastAPI backend scaffold for the Project Management 
 	- GET /api/board
 	- PUT /api/board
 	- POST /api/ai/connectivity
+	- POST /api/ai/chat
 	- Static site mount at / using backend/static/
 - static/index.html: Hello-world page that calls /api/hello from the browser.
 - pyproject.toml: Python dependencies and build metadata.
@@ -27,3 +28,4 @@ This directory contains the FastAPI backend scaffold for the Project Management 
 - Backend board CRUD routes are implemented against Supabase Postgres via SUPABASE_DB_URL.
 - Startup migration verification is implemented.
 - AI connectivity route is implemented with Anthropic direct API and Claude Sonnet tier.
+- Structured AI chat board operations are implemented via /api/ai/chat.

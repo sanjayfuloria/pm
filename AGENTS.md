@@ -52,10 +52,12 @@ A working MVP of the frontend has been built and is already in frontend. This is
 All documents for planning and executing this project will be in the docs/ directory.
 Please review the docs/PLAN.md document before proceeding.
 
-## Current status (May 1, 2026)
+## Current status (May 2, 2026)
 
 - Parts 1-8 are implemented and committed.
 - Backend and frontend are integrated for persisted board reads/writes through `/api/board`.
 - Backend AI connectivity is implemented at `/api/ai/connectivity` using Anthropic direct API and Claude Sonnet tier.
-- Part 9 (structured AI board operations) is the next implementation target.
+- Part 9 baseline is implemented: structured AI actions are generated in backend and applied through `/api/ai/chat`.
+- Frontend AI sidebar is wired to `/api/ai/chat` and refreshes board state after applied actions.
+- Remaining Part 9 refinements are conversation history in prompt context and AI audit fields.
 - Detailed per-part progress, including git status snapshots, is tracked in `docs/PROGRESS.md`.

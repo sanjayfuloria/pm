@@ -128,3 +128,24 @@ Git status snapshot
 - Modified: backend/tests/test_routes.py, backend/tests/test_service.py
 - Modified: backend/pyproject.toml, backend/README.md, .env.example
 - Modified: docs/PLAN.md, docs/PROGRESS.md, AGENTS.md, backend/AGENTS.md
+
+## Part 9 - Structured AI board operations (baseline implemented)
+
+Progress
+- Added structured AI chat request/response models and board action schema.
+- Added Anthropic structured response parsing path and AI service action planning method.
+- Implemented `POST /api/ai/chat` route to build board context, execute AI actions (create/edit/move), and persist updated board state.
+- Switched frontend AI API client and chat sidebar flow to use `/api/ai/chat` and trigger board refresh when actions are applied.
+- Removed frontend regex-based direct board mutation path in favor of backend structured operations.
+
+Validation
+- Backend tests: 17 passed.
+- Frontend unit tests: 17 passed.
+- Frontend production build: success and static export copied to `backend/static/`.
+
+Git status snapshot
+- Modified: backend/app/ai.py, backend/app/main.py, backend/app/models.py, backend/app/service.py
+- Modified: backend/tests/test_routes.py, backend/tests/test_service.py
+- Added: frontend/src/lib/aiApi.ts, frontend/src/lib/aiApi.test.ts, frontend/src/components/AIChatSidebar.tsx
+- Modified: docs/PLAN.md, docs/PROGRESS.md, AGENTS.md
+- Modified or generated static assets under `backend/static/` after frontend export.

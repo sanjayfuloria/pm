@@ -2,10 +2,10 @@
 
 This document defines implementation phases, checklists, tests, and success criteria.
 
-## Execution status (May 1, 2026)
+## Execution status (May 2, 2026)
 
 - Completed: Parts 1-8
-- In progress next: Part 9 (structured AI board operations)
+- In progress next: Part 9 (structured AI board operations, baseline implemented)
 - Detailed per-part progress and git status snapshots: `docs/PROGRESS.md`
 
 ## Global constraints
@@ -189,17 +189,17 @@ Success criteria
 Goal: support AI responses that can optionally update board state.
 
 Checklist
-- [ ] Define strict response schema for AI output (message + optional board actions).
+- [x] Define strict response schema for AI output (message + optional board actions).
 - [ ] Send current board JSON + user prompt + conversation history to model.
-- [ ] Validate model output against schema before applying changes.
-- [ ] Implement backend action executor for create/edit/move card operations.
-- [ ] Persist AI-applied board changes through same board service layer.
+- [x] Validate model output against schema before applying changes.
+- [x] Implement backend action executor for create/edit/move card operations.
+- [x] Persist AI-applied board changes through same board service layer.
 - [ ] Add audit fields for AI-originated updates.
 
 Tests
 - [ ] Unit tests for schema parsing and rejection of invalid outputs.
-- [ ] Unit tests for action executor behavior.
-- [ ] Integration tests for chat request causing valid board mutation.
+- [x] Unit tests for action executor behavior.
+- [x] Integration tests for chat request causing valid board mutation.
 - [ ] Regression tests for no-op responses.
 
 Success criteria

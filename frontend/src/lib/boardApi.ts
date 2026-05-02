@@ -20,11 +20,11 @@ const parseError = async (response: Response) => {
 
 const request = async <T>(input: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, {
+    ...init,
     headers: {
       "content-type": "application/json",
       ...(init?.headers ?? {}),
     },
-    ...init,
   });
 
   if (!response.ok) {

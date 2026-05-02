@@ -40,7 +40,12 @@ describe("boardApi", () => {
 
     expect(fetch).toHaveBeenCalledWith(
       "/api/board",
-      expect.objectContaining({ method: "PUT" })
+      expect.objectContaining({
+        method: "PUT",
+        headers: expect.objectContaining({
+          "content-type": "application/json",
+        }),
+      })
     );
     expect(result.state_version).toBe(2);
   });
