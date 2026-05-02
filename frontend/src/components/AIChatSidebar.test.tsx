@@ -41,7 +41,7 @@ describe("AIChatSidebar", () => {
     await userEvent.type(screen.getByLabelText(/prompt/i), "move card");
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }));
 
-    expect(sendAIPromptMock).toHaveBeenCalledWith("move card");
+    expect(sendAIPromptMock).toHaveBeenCalledWith("move card", "user");
     expect(await screen.findByText("Moved card successfully.")).toBeInTheDocument();
     expect(onBoardMutated).toHaveBeenCalledTimes(1);
   });

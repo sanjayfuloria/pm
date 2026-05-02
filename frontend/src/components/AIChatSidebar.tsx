@@ -51,7 +51,7 @@ export const AIChatSidebar = ({ username, onBoardMutated }: AIChatSidebarProps) 
     setIsSending(true);
 
     try {
-      const response = await sendAIPrompt(cleanPrompt);
+      const response = await sendAIPrompt(cleanPrompt, username);
       setMessages((prev) => [
         ...prev,
         {

@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import Home from "@/app/page";
 
 vi.mock("@/components/KanbanBoard", () => ({
-  KanbanBoard: () => <h1>Kanban Studio</h1>,
+  KanbanBoard: ({ username }: { username: string }) => (
+    <>
+      <h1>Kanban Studio</h1>
+      <p data-testid="board-username">{username}</p>
+    </>
+  ),
 }));
 
 vi.mock("@/components/AIChatSidebar", () => ({
@@ -41,21 +46,35 @@ describe("Home auth gate", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("allows valid credentials and supports logout", async () => {
+  it("allows teacher credentials and supports logout", async () => {
     render(<Home />);
-    await signIn("user", "password");
+    await signIn("teacher", "password");
 
     expect(screen.getByRole("heading", { name: /kanban studio/i })).toBeInTheDocument();
+    expect(screen.getByText(/signed in as teacher/i)).toBeInTheDocument();
+    expect(screen.getByTestId("board-username")).toHaveTextContent("teacher");
     expect(screen.getByRole("button", { name: /log out/i })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: /log out/i }));
     expect(screen.getByRole("heading", { name: /sign in/i })).toBeInTheDocument();
   });
 
+  it("allows student credentials", async () => {
+    render(<Home />);
+    await signIn("student1", "password");
+
+    expect(screen.getByRole("heading", { name: /kanban studio/i })).toBeInTheDocument();
+    expect(screen.getByText(/signed in as student1/i)).toBeInTheDocument();
+    expect(screen.getByTestId("board-username")).toHaveTextContent("student1");
+  });
+
   it("restores authenticated state from session", () => {
     window.sessionStorage.setItem("pm-authenticated", "true");
+    window.sessionStorage.setItem("pm-authenticated-username", "student2");
     render(<Home />);
 
     expect(screen.getByRole("heading", { name: /kanban studio/i })).toBeInTheDocument();
+    expect(screen.getByText(/signed in as student2/i)).toBeInTheDocument();
+    expect(screen.getByTestId("board-username")).toHaveTextContent("student2");
   });
 });

@@ -21,7 +21,17 @@ describe("sendAIPrompt", () => {
       )
     );
 
-    const response = await sendAIPrompt("2+2?");
+    const response = await sendAIPrompt("2+2?", "student1");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/ai/chat",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-username": "student1",
+        }),
+      })
+    );
 
     expect(response.output_text).toBe("4");
     expect(response.model).toBe("claude-sonnet-4-5-20250929");
@@ -36,7 +46,7 @@ describe("sendAIPrompt", () => {
       })
     );
 
-    await expect(sendAIPrompt("hello")).rejects.toThrow(
+    await expect(sendAIPrompt("hello", "teacher")).rejects.toThrow(
       "ANTHROPIC_API_KEY is not configured."
     );
   });

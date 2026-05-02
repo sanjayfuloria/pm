@@ -18,11 +18,15 @@ const parseError = async (response: Response) => {
   return `AI request failed with status ${response.status}.`;
 };
 
-export const sendAIPrompt = async (prompt: string): Promise<AIChatResponse> => {
+export const sendAIPrompt = async (
+  prompt: string,
+  username: string
+): Promise<AIChatResponse> => {
   const response = await fetch("/api/ai/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-username": username,
     },
     body: JSON.stringify({ prompt }),
   });

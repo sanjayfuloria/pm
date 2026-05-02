@@ -5,13 +5,19 @@ import { AIChatSidebar } from "@/components/AIChatSidebar";
 import { KanbanBoard } from "@/components/KanbanBoard";
 
 const SESSION_KEY = "pm-authenticated";
-const DUMMY_USERNAME = "user";
-const DUMMY_PASSWORD = "password";
+const SESSION_USERNAME_KEY = "pm-authenticated-username";
+
+const DEMO_CREDENTIALS: Record<string, string> = {
+  teacher: "password",
+  student1: "password",
+  student2: "password",
+};
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 
 export default function Home() {
   const [authState, setAuthState] = useState<AuthState>("loading");
+  const [authenticatedUsername, setAuthenticatedUsername] = useState<string>("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -19,13 +25,22 @@ export default function Home() {
 
   useEffect(() => {
     const hasSession = window.sessionStorage.getItem(SESSION_KEY) === "true";
-    setAuthState(hasSession ? "authenticated" : "unauthenticated");
+    if (hasSession) {
+      const savedUsername =
+        window.sessionStorage.getItem(SESSION_USERNAME_KEY) ?? "teacher";
+      setAuthenticatedUsername(savedUsername);
+      setAuthState("authenticated");
+      return;
+    }
+
+    setAuthState("unauthenticated");
   }, []);
 
   const handleLogin = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const isValid =
-      username.trim() === DUMMY_USERNAME && password === DUMMY_PASSWORD;
+    const normalizedUsername = username.trim().toLowerCase();
+    const expectedPassword = DEMO_CREDENTIALS[normalizedUsername];
+    const isValid = expectedPassword !== undefined && password === expectedPassword;
 
     if (!isValid) {
       setError("Invalid username or password.");
@@ -33,6 +48,8 @@ export default function Home() {
     }
 
     window.sessionStorage.setItem(SESSION_KEY, "true");
+    window.sessionStorage.setItem(SESSION_USERNAME_KEY, normalizedUsername);
+    setAuthenticatedUsername(normalizedUsername);
     setError("");
     setUsername("");
     setPassword("");
@@ -41,6 +58,8 @@ export default function Home() {
 
   const handleLogout = () => {
     window.sessionStorage.removeItem(SESSION_KEY);
+    window.sessionStorage.removeItem(SESSION_USERNAME_KEY);
+    setAuthenticatedUsername("");
     setAuthState("unauthenticated");
   };
 
@@ -60,6 +79,9 @@ export default function Home() {
           </h1>
           <p className="mt-3 text-sm text-[var(--gray-text)]">
             Use the demo credentials to access your Kanban board.
+          </p>
+          <p className="mt-2 text-xs text-[var(--gray-text)]">
+            Accounts: teacher/password, student1/password, student2/password
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleLogin}>
@@ -106,7 +128,10 @@ export default function Home() {
 
   return (
     <div>
-      <div className="mx-auto flex w-full max-w-[1500px] justify-end px-6 pt-6">
+      <div className="mx-auto flex w-full max-w-[1500px] items-center justify-end gap-3 px-6 pt-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--gray-text)]">
+          Signed in as {authenticatedUsername}
+        </p>
         <button
           type="button"
           onClick={handleLogout}
@@ -118,10 +143,10 @@ export default function Home() {
       <KanbanBoard
         key={boardRefreshToken}
         enableBackend
-        username={DUMMY_USERNAME}
+        username={authenticatedUsername}
       />
       <AIChatSidebar
-        username={DUMMY_USERNAME}
+        username={authenticatedUsername}
         onBoardMutated={() => setBoardRefreshToken((token) => token + 1)}
       />
     </div>
