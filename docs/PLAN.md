@@ -211,16 +211,16 @@ Success criteria
 Goal: add full chat sidebar tied to backend AI workflow and board refresh.
 
 Checklist
-- [ ] Add sidebar layout with message list, input, and send actions.
-- [ ] Hook chat UI to backend AI endpoints.
-- [ ] Render chat history and request status states.
-- [ ] Refresh board state automatically after AI-applied updates.
-- [ ] Preserve mobile and desktop usability.
+- [x] Add sidebar layout with message list, input, and send actions.
+- [x] Hook chat UI to backend AI endpoints.
+- [x] Render chat history and request status states.
+- [x] Refresh board state automatically after AI-applied updates.
+- [x] Preserve mobile and desktop usability.
 
 Tests
-- [ ] Component tests for chat input, submit, loading, and error states.
-- [ ] Integration tests for message rendering and board refresh triggers.
-- [ ] E2E scenario: ask AI to move/create/edit card and verify UI updates.
+- [x] Component tests for chat input, submit, loading, and error states.
+- [x] Integration tests for message rendering and board refresh triggers.
+- [x] E2E scenario: ask AI to move/create/edit card and verify UI updates.
 
 Success criteria
 - Chat works end-to-end with backend.

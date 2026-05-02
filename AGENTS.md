@@ -59,5 +59,6 @@ Please review the docs/PLAN.md document before proceeding.
 - Backend AI connectivity is implemented at `/api/ai/connectivity` using Anthropic direct API and Claude Sonnet tier.
 - Part 9 baseline is implemented: structured AI actions are generated in backend and applied through `/api/ai/chat`.
 - Frontend AI sidebar is wired to `/api/ai/chat` and refreshes board state after applied actions.
+- Part 10 is implemented: AI chat sidebar UX is covered by component and e2e tests.
 - Remaining Part 9 refinements are conversation history in prompt context and AI audit fields.
 - Detailed per-part progress, including git status snapshots, is tracked in `docs/PROGRESS.md`.

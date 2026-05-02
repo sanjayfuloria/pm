@@ -149,3 +149,20 @@ Git status snapshot
 - Added: frontend/src/lib/aiApi.ts, frontend/src/lib/aiApi.test.ts, frontend/src/components/AIChatSidebar.tsx
 - Modified: docs/PLAN.md, docs/PROGRESS.md, AGENTS.md
 - Modified or generated static assets under `backend/static/` after frontend export.
+
+## Part 10 - AI chat sidebar UX (implemented)
+
+Progress
+- Completed chat sidebar UX flow with message list, input, submit, minimize/expand, loading, and error display.
+- Confirmed chat is wired to `/api/ai/chat` and refreshes board state after applied AI actions.
+- Added dedicated component tests for AI chat prompt submit, response rendering, loading/error behavior, and board refresh callback triggering.
+- Added browser e2e test that stubs `/api/ai/chat` and `/api/board` and verifies AI-triggered board mutation is visible after refresh.
+
+Validation
+- Frontend unit tests: 21 passed.
+- Frontend e2e tests: 6 passed.
+
+Git status snapshot
+- Added: `frontend/src/components/AIChatSidebar.test.tsx`
+- Modified: `frontend/tests/kanban.spec.ts`
+- Modified: `docs/PLAN.md`, `docs/PROGRESS.md`
