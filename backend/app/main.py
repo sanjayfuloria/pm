@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import json
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse
@@ -27,6 +28,21 @@ async def lifespan(fastapi_app: FastAPI):
 
 app = FastAPI(title="Project Management MVP Backend", lifespan=lifespan)
 api_router = APIRouter(prefix="/api")
+
+
+def _parse_cors_allow_origins(raw_value: str) -> list[str]:
+    parsed = [origin.strip() for origin in raw_value.split(",") if origin.strip()]
+    return parsed or ["*"]
+
+
+_settings = load_settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_parse_cors_allow_origins(_settings.cors_allow_origins),
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(NotFoundError)

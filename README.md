@@ -49,7 +49,35 @@ Copy `.env.example` to `.env` and set values:
 - `SUPABASE_DB_URL`: Required for board read/write APIs
 - `ANTHROPIC_API_KEY`: Required for AI APIs
 - `ANTHROPIC_MODEL`: Optional, defaults to `claude-sonnet-4-5-20250929`
+- `CORS_ALLOW_ORIGINS`: Optional; comma-separated frontend origins, defaults to `*`
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`: present for future use
+
+## Deploy to Vercel
+
+Use two Vercel projects from this monorepo:
+
+1. Backend project with Root Directory `backend/`
+2. Frontend project with Root Directory `frontend/`
+
+### Backend (FastAPI) on Vercel
+
+- Import repo in Vercel, set Root Directory to `backend/`.
+- Add backend environment variables:
+  - `SUPABASE_DB_URL`
+  - `ANTHROPIC_API_KEY`
+  - `ANTHROPIC_MODEL` (optional)
+  - `CORS_ALLOW_ORIGINS` (set to your frontend Vercel URL, for example `https://pm-frontend.vercel.app`)
+- Deploy and verify health endpoint:
+  - `https://<your-backend-domain>/api/health`
+
+### Frontend (Next.js) on Vercel
+
+- Import repo again in Vercel, set Root Directory to `frontend/`.
+- Add frontend environment variable:
+  - `NEXT_PUBLIC_API_BASE_URL=https://<your-backend-domain>`
+- Deploy and open the app URL.
+
+The frontend now builds API requests using `NEXT_PUBLIC_API_BASE_URL` when provided, and falls back to same-origin `/api` locally.
 
 ## Quick start (Docker)
 

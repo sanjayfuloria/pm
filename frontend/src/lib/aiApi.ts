@@ -5,6 +5,10 @@ export type AIChatResponse = {
   board_state_version: number;
 };
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+
+const apiUrl = (path: string): string => `${API_BASE_URL}${path}`;
+
 const parseError = async (response: Response) => {
   try {
     const payload = (await response.json()) as { detail?: string };
@@ -22,7 +26,7 @@ export const sendAIPrompt = async (
   prompt: string,
   username: string
 ): Promise<AIChatResponse> => {
-  const response = await fetch("/api/ai/chat", {
+  const response = await fetch(apiUrl("/api/ai/chat"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -1,5 +1,9 @@
 import type { BoardData } from "@/lib/kanban";
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+
+const apiUrl = (path: string): string => `${API_BASE_URL}${path}`;
+
 export type BoardApiResponse = {
   id: string;
   username: string;
@@ -36,7 +40,7 @@ const request = async <T>(input: string, init?: RequestInit): Promise<T> => {
 };
 
 export const getBoard = async (username: string): Promise<BoardApiResponse> => {
-  return request<BoardApiResponse>("/api/board", {
+  return request<BoardApiResponse>(apiUrl("/api/board"), {
     method: "GET",
     headers: {
       "x-username": username,
@@ -48,7 +52,7 @@ export const updateBoard = async (
   username: string,
   state: BoardData
 ): Promise<BoardApiResponse> => {
-  return request<BoardApiResponse>("/api/board", {
+  return request<BoardApiResponse>(apiUrl("/api/board"), {
     method: "PUT",
     headers: {
       "x-username": username,
