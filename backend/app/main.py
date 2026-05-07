@@ -62,16 +62,21 @@ app.add_middleware(
 
 # Module-level initialization. Works in both uvicorn (local Docker) and Vercel
 # serverless (where FastAPI lifespan events do not fire).
+_board_init_error: str | None = None
+_ai_init_error: str | None = None
+
 try:
     initialize_board_service(app, _settings)
-except Exception:
+except Exception as exc:
     logger.exception("Board service initialization failed")
+    _board_init_error = str(exc)
     app.state.board_service = None
 
 try:
     initialize_ai_service(app, _settings)
-except Exception:
+except Exception as exc:
     logger.exception("AI service initialization failed")
+    _ai_init_error = str(exc)
     app.state.ai_service = None
 
 
@@ -115,13 +120,18 @@ async def handle_validation(_request, exc: RequestValidationError) -> JSONRespon
 
 @api_router.get("/health")
 def healthcheck() -> dict[str, str]:
-    return {
+    result = {
         "status": "ok",
         "board_service": "configured" if getattr(app.state, "board_service", None) else "not configured",
         "ai_service": "configured" if getattr(app.state, "ai_service", None) else "not configured",
         "has_db_url": "yes" if os.getenv("SUPABASE_DB_URL") else "no",
         "has_api_key": "yes" if os.getenv("ANTHROPIC_API_KEY") else "no",
     }
+    if _board_init_error:
+        result["board_init_error"] = _board_init_error
+    if _ai_init_error:
+        result["ai_init_error"] = _ai_init_error
+    return result
 
 
 @api_router.get("/hello")
