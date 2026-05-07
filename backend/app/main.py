@@ -20,13 +20,35 @@ from app.models import AIChatRequest, AIChatResponse, AIConnectivityRequest, AIC
 from app.repository import BoardRepository
 from app.service import AIService, BoardService
 
-app = FastAPI(title="Project Management MVP Backend")
-api_router = APIRouter(prefix="/api")
+def initialize_board_service(fastapi_app: FastAPI, settings: Settings) -> None:
+    if not settings.supabase_db_url:
+        fastapi_app.state.board_service = None
+        return
+
+    repository = BoardRepository(settings.supabase_db_url)
+    migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
+    repository.apply_migrations(migrations_dir=migrations_dir)
+    fastapi_app.state.board_service = BoardService(repository)
+
+
+def initialize_ai_service(fastapi_app: FastAPI, settings: Settings) -> None:
+    if not settings.anthropic_api_key:
+        fastapi_app.state.ai_service = None
+        return
+
+    client = AnthropicConnectivityClient(
+        api_key=settings.anthropic_api_key,
+        model=settings.anthropic_model,
+    )
+    fastapi_app.state.ai_service = AIService(client=client, model=settings.anthropic_model)
 
 
 def _parse_cors_allow_origins(raw_value: str) -> list[str]:
     return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
 
+
+app = FastAPI(title="Project Management MVP Backend")
+api_router = APIRouter(prefix="/api")
 
 _settings = load_settings()
 app.add_middleware(
@@ -79,29 +101,6 @@ async def handle_validation(_request, exc: RequestValidationError) -> JSONRespon
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": detail},
     )
-
-
-def initialize_board_service(fastapi_app: FastAPI, settings: Settings) -> None:
-    if not settings.supabase_db_url:
-        fastapi_app.state.board_service = None
-        return
-
-    repository = BoardRepository(settings.supabase_db_url)
-    migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
-    repository.apply_migrations(migrations_dir=migrations_dir)
-    fastapi_app.state.board_service = BoardService(repository)
-
-
-def initialize_ai_service(fastapi_app: FastAPI, settings: Settings) -> None:
-    if not settings.anthropic_api_key:
-        fastapi_app.state.ai_service = None
-        return
-
-    client = AnthropicConnectivityClient(
-        api_key=settings.anthropic_api_key,
-        model=settings.anthropic_model,
-    )
-    fastapi_app.state.ai_service = AIService(client=client, model=settings.anthropic_model)
 
 
 @api_router.get("/health")
