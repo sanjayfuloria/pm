@@ -16,5 +16,5 @@ def load_settings() -> Settings:
         supabase_db_url=os.getenv("SUPABASE_DB_URL"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
         anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
-        cors_allow_origins=os.getenv("CORS_ALLOW_ORIGINS", "*"),
+        cors_allow_origins=os.getenv("CORS_ALLOW_ORIGINS", ""),
     )

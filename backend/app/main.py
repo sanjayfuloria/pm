@@ -1,6 +1,6 @@
 from pathlib import Path
-from contextlib import asynccontextmanager
 import json
+import logging
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +10,8 @@ from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 
+logger = logging.getLogger(__name__)
+
 from app.ai import AnthropicConnectivityClient
 from app.config import Settings, load_settings
 from app.deps import get_ai_service, get_board_service, get_current_username
@@ -18,21 +20,12 @@ from app.models import AIChatRequest, AIChatResponse, AIConnectivityRequest, AIC
 from app.repository import BoardRepository
 from app.service import AIService, BoardService
 
-@asynccontextmanager
-async def lifespan(fastapi_app: FastAPI):
-    settings = load_settings()
-    initialize_board_service(fastapi_app, settings)
-    initialize_ai_service(fastapi_app, settings)
-    yield
-
-
-app = FastAPI(title="Project Management MVP Backend", lifespan=lifespan)
+app = FastAPI(title="Project Management MVP Backend")
 api_router = APIRouter(prefix="/api")
 
 
 def _parse_cors_allow_origins(raw_value: str) -> list[str]:
-    parsed = [origin.strip() for origin in raw_value.split(",") if origin.strip()]
-    return parsed or ["*"]
+    return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
 
 
 _settings = load_settings()
@@ -43,6 +36,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Module-level initialization. Works in both uvicorn (local Docker) and Vercel
+# serverless (where FastAPI lifespan events do not fire).
+initialize_board_service(app, _settings)
+initialize_ai_service(app, _settings)
 
 
 @app.exception_handler(NotFoundError)
@@ -174,7 +172,10 @@ def ai_connectivity(
                 },
                 ensure_ascii=True,
             )
+        except (NotFoundError, PersistenceError):
+            board_context = None
         except Exception:
+            logger.exception("Unexpected error loading board context for AI connectivity")
             board_context = None
 
     return service.connectivity_check(prompt=payload.prompt, board_context=board_context)
@@ -256,7 +257,7 @@ def ai_chat(
                 f"Moved '{card.get('title')}' from '{from_column.get('title')}' to '{to_column.get('title')}'"
             )
 
-        if action_type == "create_card":
+        elif action_type == "create_card":
             to_column = next(
                 (column for column in next_state["columns"] if _normalize_label(column.get("title", "")) == _normalize_label(action.to_column_title or "")),
                 None,
@@ -272,7 +273,7 @@ def ai_chat(
             to_column["cardIds"].append(card_id)
             applied_actions.append(f"Created '{card_title}' in '{to_column.get('title')}'")
 
-        if action_type == "edit_card":
+        elif action_type == "edit_card":
             card = next(
                 (card for card in next_state["cards"].values() if _normalize_label(card.get("title", "")) == _normalize_label(card_title)),
                 None,
