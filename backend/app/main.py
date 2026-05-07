@@ -61,8 +61,17 @@ app.add_middleware(
 
 # Module-level initialization. Works in both uvicorn (local Docker) and Vercel
 # serverless (where FastAPI lifespan events do not fire).
-initialize_board_service(app, _settings)
-initialize_ai_service(app, _settings)
+try:
+    initialize_board_service(app, _settings)
+except Exception:
+    logger.exception("Board service initialization failed")
+    app.state.board_service = None
+
+try:
+    initialize_ai_service(app, _settings)
+except Exception:
+    logger.exception("AI service initialization failed")
+    app.state.ai_service = None
 
 
 @app.exception_handler(NotFoundError)
