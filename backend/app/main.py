@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import logging
+import os
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -114,7 +115,13 @@ async def handle_validation(_request, exc: RequestValidationError) -> JSONRespon
 
 @api_router.get("/health")
 def healthcheck() -> dict[str, str]:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "board_service": "configured" if getattr(app.state, "board_service", None) else "not configured",
+        "ai_service": "configured" if getattr(app.state, "ai_service", None) else "not configured",
+        "has_db_url": "yes" if os.getenv("SUPABASE_DB_URL") else "no",
+        "has_api_key": "yes" if os.getenv("ANTHROPIC_API_KEY") else "no",
+    }
 
 
 @api_router.get("/hello")
