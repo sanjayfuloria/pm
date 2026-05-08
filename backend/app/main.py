@@ -54,16 +54,15 @@ def initialize_ai_service(fastapi_app: FastAPI, settings: Settings) -> None:
 def seed_default_teacher(db_url: str) -> None:
     repo = AuthRepository(db_url)
     existing = repo.get_user_by_username("teacher")
-    if existing and existing["password_hash"]:
-        return
-    hashed = hash_password("changeme")
     if existing:
-        repo.update_password(str(existing["id"]), hashed)
-        # Ensure role is teacher (might be 'student' if user existed before migration)
+        # Ensure role is always teacher
         if existing.get("role") != "teacher":
             repo.update_role(str(existing["id"]), "teacher")
+        # Reset password if it doesn't match "changeme" (handles corrupted state)
+        if not existing["password_hash"] or not verify_password("changeme", existing["password_hash"]):
+            repo.update_password(str(existing["id"]), hash_password("changeme"))
     else:
-        repo.create_user(username="teacher", password_hash=hashed, role="teacher")
+        repo.create_user(username="teacher", password_hash=hash_password("changeme"), role="teacher")
 
 
 def _parse_cors_allow_origins(raw_value: str) -> list[str]:
