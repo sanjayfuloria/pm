@@ -170,6 +170,28 @@ def healthcheck() -> dict[str, str]:
     return result
 
 
+# Temporary debug endpoint - remove after fixing login
+@api_router.get("/debug/teacher")
+def debug_teacher(request: Request) -> dict[str, str]:
+    db_url = getattr(request.app.state, "db_url", None)
+    if not db_url:
+        return {"error": "no db"}
+    repo = AuthRepository(db_url)
+    user = repo.get_user_by_username("teacher")
+    if not user:
+        return {"error": "teacher user not found"}
+    has_hash = bool(user["password_hash"])
+    hash_prefix = user["password_hash"][:10] if user["password_hash"] else "(empty)"
+    pw_ok = "yes" if has_hash and verify_password("changeme", user["password_hash"]) else "no"
+    return {
+        "username": user["username"],
+        "role": user.get("role", "unknown"),
+        "has_password_hash": "yes" if has_hash else "no",
+        "hash_prefix": hash_prefix,
+        "changeme_matches": pw_ok,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
