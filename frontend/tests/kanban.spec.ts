@@ -1,5 +1,28 @@
 import { expect, test } from "@playwright/test";
 
+const mockLogin = async (page: Parameters<typeof test>[0]["page"]) => {
+  await page.route("**/api/auth/login", async (route) => {
+    const body = JSON.parse(route.request().postData() ?? "{}");
+    if (body.username === "user" && body.password === "password") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ token: "test-token", username: "user", role: "student" }),
+      });
+    } else {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Invalid username or password" }),
+      });
+    }
+  });
+
+  await page.route("**/api/auth/logout", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: '{"detail":"Logged out"}' });
+  });
+};
+
 const login = async (page: Parameters<typeof test>[0]["page"]) => {
   await page.getByLabel(/username/i).fill("user");
   await page.getByLabel(/password/i).fill("password");
@@ -13,16 +36,18 @@ test("requires login before showing the board", async ({ page }) => {
 });
 
 test("shows error on invalid login", async ({ page }) => {
+  await mockLogin(page);
   await page.goto("/");
   await page.getByLabel(/username/i).fill("wrong");
   await page.getByLabel(/password/i).fill("credentials");
   await page.getByRole("button", { name: /sign in/i }).click();
 
-  await expect(page.getByText("Invalid username or password.")).toBeVisible();
+  await expect(page.getByText("Invalid username or password")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Kanban Studio" })).not.toBeVisible();
 });
 
 test("logs in, loads board, and can log out", async ({ page }) => {
+  await mockLogin(page);
   await page.goto("/");
   await login(page);
 
@@ -34,6 +59,7 @@ test("logs in, loads board, and can log out", async ({ page }) => {
 });
 
 test("adds a card to a column", async ({ page }) => {
+  await mockLogin(page);
   await page.goto("/");
   await login(page);
   const firstColumn = page.locator('[data-testid^="column-"]').first();
@@ -45,6 +71,7 @@ test("adds a card to a column", async ({ page }) => {
 });
 
 test("moves a card between columns", async ({ page }) => {
+  await mockLogin(page);
   await page.goto("/");
   await login(page);
   const card = page.getByTestId("card-card-1");
@@ -70,6 +97,8 @@ test("moves a card between columns", async ({ page }) => {
 });
 
 test("applies AI chat action and refreshes board", async ({ page }) => {
+  await mockLogin(page);
+
   let stateVersion = 1;
   const boardState = {
     columns: [

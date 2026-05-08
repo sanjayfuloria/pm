@@ -24,13 +24,13 @@ const parseError = async (response: Response) => {
 
 export const sendAIPrompt = async (
   prompt: string,
-  username: string
+  token: string
 ): Promise<AIChatResponse> => {
   const response = await fetch(apiUrl("/api/ai/chat"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-username": username,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ prompt }),
   });

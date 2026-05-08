@@ -71,7 +71,7 @@ describe("KanbanBoard", () => {
       )
     );
 
-    render(<KanbanBoard enableBackend username="user" />);
+    render(<KanbanBoard enableBackend token="test-token" username="user" />);
 
     expect(await screen.findByDisplayValue("Backend Backlog")).toBeInTheDocument();
   });
@@ -107,7 +107,7 @@ describe("KanbanBoard", () => {
         );
       });
 
-    render(<KanbanBoard enableBackend username="user" />);
+    render(<KanbanBoard enableBackend token="test-token" username="user" />);
     await screen.findByText(/backend sync active/i);
 
     const column = getFirstColumn();

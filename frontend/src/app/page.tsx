@@ -2,69 +2,78 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AIChatSidebar } from "@/components/AIChatSidebar";
+import { AdminPanel } from "@/components/AdminPanel";
+import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { KanbanBoard } from "@/components/KanbanBoard";
+import { login as apiLogin, logout as apiLogout } from "@/lib/authApi";
 
-const SESSION_KEY = "pm-authenticated";
-const SESSION_USERNAME_KEY = "pm-authenticated-username";
-
-const DEMO_CREDENTIALS: Record<string, string> = {
-  user: "password",
-  teacher: "password",
-  student1: "password",
-  student2: "password",
-};
+const SESSION_TOKEN_KEY = "pm-auth-token";
+const SESSION_USERNAME_KEY = "pm-auth-username";
+const SESSION_ROLE_KEY = "pm-auth-role";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 
 export default function Home() {
   const [authState, setAuthState] = useState<AuthState>("loading");
-  const [authenticatedUsername, setAuthenticatedUsername] = useState<string>("");
+  const [token, setToken] = useState("");
+  const [authenticatedUsername, setAuthenticatedUsername] = useState("");
+  const [role, setRole] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [boardRefreshToken, setBoardRefreshToken] = useState(0);
+  const [viewingStudent, setViewingStudent] = useState<string | null>(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   useEffect(() => {
-    const hasSession = window.sessionStorage.getItem(SESSION_KEY) === "true";
-    if (hasSession) {
-      const savedUsername =
-        window.sessionStorage.getItem(SESSION_USERNAME_KEY) ?? "teacher";
-      setAuthenticatedUsername(savedUsername);
+    const savedToken = window.sessionStorage.getItem(SESSION_TOKEN_KEY);
+    if (savedToken) {
+      setToken(savedToken);
+      setAuthenticatedUsername(
+        window.sessionStorage.getItem(SESSION_USERNAME_KEY) ?? ""
+      );
+      setRole(window.sessionStorage.getItem(SESSION_ROLE_KEY) ?? "");
       setAuthState("authenticated");
       return;
     }
-
     setAuthState("unauthenticated");
   }, []);
 
-  const handleLogin = (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const compactCredential = username.trim().toLowerCase();
-    const compactParts = compactCredential.split("/");
-    const normalizedUsername = compactParts[0]?.trim() ?? "";
-    const normalizedPassword =
-      password.trim() || compactParts.slice(1).join("/").trim();
-    const expectedPassword = DEMO_CREDENTIALS[normalizedUsername];
-    const isValid = expectedPassword !== undefined && normalizedPassword === expectedPassword;
-
-    if (!isValid) {
-      setError("Invalid username or password.");
-      return;
-    }
-
-    window.sessionStorage.setItem(SESSION_KEY, "true");
-    window.sessionStorage.setItem(SESSION_USERNAME_KEY, normalizedUsername);
-    setAuthenticatedUsername(normalizedUsername);
     setError("");
-    setUsername("");
-    setPassword("");
-    setAuthState("authenticated");
+    setLoginLoading(true);
+    try {
+      const result = await apiLogin(
+        username.trim().toLowerCase(),
+        password
+      );
+      window.sessionStorage.setItem(SESSION_TOKEN_KEY, result.token);
+      window.sessionStorage.setItem(SESSION_USERNAME_KEY, result.username);
+      window.sessionStorage.setItem(SESSION_ROLE_KEY, result.role);
+      setToken(result.token);
+      setAuthenticatedUsername(result.username);
+      setRole(result.role);
+      setUsername("");
+      setPassword("");
+      setAuthState("authenticated");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
-  const handleLogout = () => {
-    window.sessionStorage.removeItem(SESSION_KEY);
+  const handleLogout = async () => {
+    await apiLogout(token).catch(() => {});
+    window.sessionStorage.removeItem(SESSION_TOKEN_KEY);
     window.sessionStorage.removeItem(SESSION_USERNAME_KEY);
+    window.sessionStorage.removeItem(SESSION_ROLE_KEY);
+    setToken("");
     setAuthenticatedUsername("");
+    setRole("");
+    setViewingStudent(null);
     setAuthState("unauthenticated");
   };
 
@@ -83,13 +92,7 @@ export default function Home() {
             Sign in
           </h1>
           <p className="mt-3 text-sm text-[var(--gray-text)]">
-            Use the demo credentials to access your Kanban board.
-          </p>
-          <p className="mt-2 text-xs text-[var(--gray-text)]">
-            Accounts: user/password, teacher/password, student1/password, student2/password
-          </p>
-          <p className="mt-1 text-xs text-[var(--gray-text)]">
-            You can also paste a compact value like teacher/password in Username.
+            Enter your credentials to access your Kanban board.
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleLogin}>
@@ -124,9 +127,10 @@ export default function Home() {
 
             <button
               type="submit"
-              className="w-full rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:brightness-110"
+              disabled={loginLoading}
+              className="w-full rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:brightness-110 disabled:opacity-50"
             >
-              Sign in
+              {loginLoading ? "Signing in..." : "Sign in"}
             </button>
           </form>
         </section>
@@ -138,8 +142,15 @@ export default function Home() {
     <div>
       <div className="mx-auto flex w-full max-w-[1500px] items-center justify-end gap-3 px-6 pt-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--gray-text)]">
-          Signed in as {authenticatedUsername}
+          Signed in as {authenticatedUsername} ({role})
         </p>
+        <button
+          type="button"
+          onClick={() => setShowChangePassword(true)}
+          className="rounded-full border border-[var(--stroke)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--navy-dark)] transition hover:border-[var(--primary-blue)]"
+        >
+          Change password
+        </button>
         <button
           type="button"
           onClick={handleLogout}
@@ -148,15 +159,55 @@ export default function Home() {
           Log out
         </button>
       </div>
+
+      {showChangePassword && (
+        <ChangePasswordForm
+          token={token}
+          onClose={() => setShowChangePassword(false)}
+        />
+      )}
+
+      {role === "teacher" && !viewingStudent && (
+        <AdminPanel
+          token={token}
+          onViewBoard={(studentUsername) => setViewingStudent(studentUsername)}
+        />
+      )}
+
+      {viewingStudent && (
+        <div className="mx-auto flex max-w-[1500px] items-center gap-3 px-6 pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setViewingStudent(null);
+              setBoardRefreshToken((t) => t + 1);
+            }}
+            className="rounded-full border border-[var(--stroke)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--navy-dark)] transition hover:border-[var(--primary-blue)]"
+          >
+            Back to my board
+          </button>
+          <p className="text-sm font-semibold text-[var(--navy-dark)]">
+            Viewing {viewingStudent}&apos;s board (read-only)
+          </p>
+        </div>
+      )}
+
       <KanbanBoard
-        key={boardRefreshToken}
+        key={`${viewingStudent ?? authenticatedUsername}-${boardRefreshToken}`}
         enableBackend
-        username={authenticatedUsername}
+        token={token}
+        username={viewingStudent ?? authenticatedUsername}
+        readOnly={!!viewingStudent}
+        studentUsername={viewingStudent ?? undefined}
       />
-      <AIChatSidebar
-        username={authenticatedUsername}
-        onBoardMutated={() => setBoardRefreshToken((token) => token + 1)}
-      />
+
+      {!viewingStudent && (
+        <AIChatSidebar
+          token={token}
+          username={authenticatedUsername}
+          onBoardMutated={() => setBoardRefreshToken((t) => t + 1)}
+        />
+      )}
     </div>
   );
 }

@@ -39,23 +39,29 @@ const request = async <T>(input: string, init?: RequestInit): Promise<T> => {
   return (await response.json()) as T;
 };
 
-export const getBoard = async (username: string): Promise<BoardApiResponse> => {
-  return request<BoardApiResponse>(apiUrl("/api/board"), {
+export const getBoard = async (
+  token: string,
+  studentUsername?: string
+): Promise<BoardApiResponse> => {
+  const url = studentUsername
+    ? apiUrl(`/api/board?student=${encodeURIComponent(studentUsername)}`)
+    : apiUrl("/api/board");
+  return request<BoardApiResponse>(url, {
     method: "GET",
     headers: {
-      "x-username": username,
+      Authorization: `Bearer ${token}`,
     },
   });
 };
 
 export const updateBoard = async (
-  username: string,
+  token: string,
   state: BoardData
 ): Promise<BoardApiResponse> => {
   return request<BoardApiResponse>(apiUrl("/api/board"), {
     method: "PUT",
     headers: {
-      "x-username": username,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ state }),
   });

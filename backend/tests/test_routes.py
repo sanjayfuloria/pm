@@ -2,11 +2,15 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_ai_service, get_board_service, get_current_username
+from app.deps import get_ai_service, get_board_service, get_current_user
 from app.errors import AIProviderError
 from app.main import app
 from app.models import AIBoardAction
 from app.models import BoardResponse
+
+
+FAKE_USER = {"user_id": "u-1", "username": "user", "role": "student"}
+FAKE_TEACHER = {"user_id": "t-1", "username": "teacher", "role": "teacher"}
 
 
 class FakeBoardService:
@@ -21,11 +25,9 @@ class FakeBoardService:
         )
 
     def get_board(self, username: str) -> BoardResponse:
-        assert username == "user"
         return self.board
 
     def update_board(self, username: str, state: dict) -> BoardResponse:
-        assert username == "user"
         self.board = BoardResponse(
             id=self.board.id,
             username=self.board.username,
@@ -79,7 +81,7 @@ class FailingAIService:
 def test_get_board_route() -> None:
     fake_service = FakeBoardService()
     app.dependency_overrides[get_board_service] = lambda: fake_service
-    app.dependency_overrides[get_current_username] = lambda: "user"
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
 
     client = TestClient(app)
     response = client.get("/api/board")
@@ -95,7 +97,7 @@ def test_get_board_route() -> None:
 def test_put_board_route() -> None:
     fake_service = FakeBoardService()
     app.dependency_overrides[get_board_service] = lambda: fake_service
-    app.dependency_overrides[get_current_username] = lambda: "user"
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
 
     client = TestClient(app)
     response = client.put(
@@ -114,7 +116,7 @@ def test_put_board_route() -> None:
 def test_put_board_validates_payload() -> None:
     fake_service = FakeBoardService()
     app.dependency_overrides[get_board_service] = lambda: fake_service
-    app.dependency_overrides[get_current_username] = lambda: "user"
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
 
     client = TestClient(app)
     response = client.put("/api/board", json={"invalid": "shape"})
@@ -126,6 +128,7 @@ def test_put_board_validates_payload() -> None:
 def test_ai_connectivity_route() -> None:
     app.dependency_overrides.clear()
     app.dependency_overrides[get_ai_service] = lambda: FakeAIService()
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
 
     client = TestClient(app)
     response = client.post(
@@ -143,16 +146,19 @@ def test_ai_connectivity_route() -> None:
 
 def test_ai_connectivity_missing_api_key() -> None:
     app.dependency_overrides.clear()
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
     client = TestClient(app)
     response = client.post("/api/ai/connectivity", json={"prompt": "ping"})
 
     assert response.status_code == 503
     assert response.json()["detail"] == "ANTHROPIC_API_KEY is not configured. AI API is unavailable."
+    app.dependency_overrides.clear()
 
 
 def test_ai_connectivity_provider_failure() -> None:
     app.dependency_overrides.clear()
     app.dependency_overrides[get_ai_service] = lambda: FailingAIService()
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
 
     client = TestClient(app)
     response = client.post("/api/ai/connectivity", json={"prompt": "ping"})
@@ -189,7 +195,7 @@ def test_ai_chat_route() -> None:
     app.dependency_overrides.clear()
     app.dependency_overrides[get_ai_service] = lambda: FakeAIService()
     app.dependency_overrides[get_board_service] = lambda: fake_board
-    app.dependency_overrides[get_current_username] = lambda: "user"
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
 
     client = TestClient(app)
     response = client.post(
@@ -203,4 +209,36 @@ def test_ai_chat_route() -> None:
     assert len(payload["applied_actions"]) == 1
     assert payload["board_state_version"] == 2
 
+    app.dependency_overrides.clear()
+
+
+def test_unauthenticated_request_returns_401() -> None:
+    app.dependency_overrides.clear()
+    client = TestClient(app)
+    response = client.get("/api/board")
+    assert response.status_code == 401
+    app.dependency_overrides.clear()
+
+
+def test_teacher_can_view_student_board() -> None:
+    fake_service = FakeBoardService()
+    app.dependency_overrides[get_board_service] = lambda: fake_service
+    app.dependency_overrides[get_current_user] = lambda: FAKE_TEACHER
+
+    client = TestClient(app)
+    response = client.get("/api/board?student=student1")
+
+    assert response.status_code == 200
+    app.dependency_overrides.clear()
+
+
+def test_student_cannot_view_other_student_board() -> None:
+    fake_service = FakeBoardService()
+    app.dependency_overrides[get_board_service] = lambda: fake_service
+    app.dependency_overrides[get_current_user] = lambda: FAKE_USER
+
+    client = TestClient(app)
+    response = client.get("/api/board?student=other")
+
+    assert response.status_code == 403
     app.dependency_overrides.clear()

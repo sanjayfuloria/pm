@@ -10,6 +10,7 @@ type ChatMessage = {
 };
 
 type AIChatSidebarProps = {
+  token: string;
   username: string;
   onBoardMutated: () => void;
 };
@@ -17,7 +18,7 @@ type AIChatSidebarProps = {
 const createMessageId = () =>
   `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
-export const AIChatSidebar = ({ username, onBoardMutated }: AIChatSidebarProps) => {
+export const AIChatSidebar = ({ token, username, onBoardMutated }: AIChatSidebarProps) => {
   const [prompt, setPrompt] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -51,7 +52,7 @@ export const AIChatSidebar = ({ username, onBoardMutated }: AIChatSidebarProps) 
     setIsSending(true);
 
     try {
-      const response = await sendAIPrompt(cleanPrompt, username);
+      const response = await sendAIPrompt(cleanPrompt, token);
       setMessages((prev) => [
         ...prev,
         {

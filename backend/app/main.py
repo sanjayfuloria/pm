@@ -3,7 +3,7 @@ import json
 import logging
 import os
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import status
 from fastapi.exceptions import RequestValidationError
@@ -14,12 +14,19 @@ from fastapi.routing import APIRouter
 logger = logging.getLogger(__name__)
 
 from app.ai import AnthropicConnectivityClient
+from app.auth import create_session, delete_session, hash_password, verify_password
+from app.auth_repository import AuthRepository
 from app.config import Settings, load_settings
-from app.deps import get_ai_service, get_board_service, get_current_username
+from app.deps import get_ai_service, get_board_service, get_current_user, require_teacher
 from app.errors import AIProviderError, NotConfiguredError, NotFoundError, PersistenceError
-from app.models import AIChatRequest, AIChatResponse, AIConnectivityRequest, AIConnectivityResponse, BoardResponse, BoardUpdateRequest
+from app.models import (
+    AIChatRequest, AIChatResponse, AIConnectivityRequest, AIConnectivityResponse,
+    BoardResponse, BoardUpdateRequest, ChangePasswordRequest,
+    CreateStudentRequest, LoginRequest, LoginResponse, StudentResponse,
+)
 from app.repository import BoardRepository
 from app.service import AIService, BoardService
+
 
 def initialize_board_service(fastapi_app: FastAPI, settings: Settings) -> None:
     if not settings.supabase_db_url:
@@ -44,6 +51,18 @@ def initialize_ai_service(fastapi_app: FastAPI, settings: Settings) -> None:
     fastapi_app.state.ai_service = AIService(client=client, model=settings.anthropic_model)
 
 
+def seed_default_teacher(db_url: str) -> None:
+    repo = AuthRepository(db_url)
+    existing = repo.get_user_by_username("teacher")
+    if existing and existing["password_hash"]:
+        return
+    hashed = hash_password("changeme")
+    if existing:
+        repo.update_password(existing["id"], hashed)
+    else:
+        repo.create_user(username="teacher", password_hash=hashed, role="teacher")
+
+
 def _parse_cors_allow_origins(raw_value: str) -> list[str]:
     return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
 
@@ -60,8 +79,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Module-level initialization. Works in both uvicorn (local Docker) and Vercel
-# serverless (where FastAPI lifespan events do not fire).
+# Store db_url on app.state so deps.py can access it for session validation.
+app.state.db_url = _settings.supabase_db_url
+
+# Module-level initialization.
 _board_init_error: str | None = None
 _ai_init_error: str | None = None
 
@@ -78,6 +99,12 @@ except Exception as exc:
     logger.exception("AI service initialization failed")
     _ai_init_error = str(exc)
     app.state.ai_service = None
+
+try:
+    if _settings.supabase_db_url:
+        seed_default_teacher(_settings.supabase_db_url)
+except Exception:
+    logger.exception("Failed to seed default teacher account")
 
 
 @app.exception_handler(NotFoundError)
@@ -118,14 +145,16 @@ async def handle_validation(_request, exc: RequestValidationError) -> JSONRespon
     )
 
 
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+
 @api_router.get("/health")
 def healthcheck() -> dict[str, str]:
     result = {
         "status": "ok",
         "board_service": "configured" if getattr(app.state, "board_service", None) else "not configured",
         "ai_service": "configured" if getattr(app.state, "ai_service", None) else "not configured",
-        "has_db_url": "yes" if os.getenv("SUPABASE_DB_URL") else "no",
-        "has_api_key": "yes" if os.getenv("ANTHROPIC_API_KEY") else "no",
     }
     if _board_init_error:
         result["board_init_error"] = _board_init_error
@@ -134,40 +163,139 @@ def healthcheck() -> dict[str, str]:
     return result
 
 
-@api_router.get("/hello")
-def hello_api() -> JSONResponse:
-    return JSONResponse(
-        {
-            "message": "Hello from FastAPI",
-            "service": "pm-backend",
-        }
-    )
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
+@api_router.post("/auth/login", response_model=LoginResponse)
+def auth_login(payload: LoginRequest, request: Request) -> LoginResponse:
+    db_url = getattr(request.app.state, "db_url", None)
+    if not db_url:
+        raise NotConfiguredError("Database not configured")
+    repo = AuthRepository(db_url)
+    user = repo.get_user_by_username(payload.username.strip().lower())
+    if not user or not verify_password(payload.password, user["password_hash"]):
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": "Invalid username or password"},
+        )
+    token = create_session(db_url, str(user["id"]))
+    return LoginResponse(token=token, username=user["username"], role=user["role"])
+
+
+@api_router.post("/auth/logout")
+def auth_logout(
+    request: Request,
+    user: dict = Depends(get_current_user),
+) -> JSONResponse:
+    db_url = request.app.state.db_url
+    token = request.headers.get("authorization", "").removeprefix("Bearer ")
+    delete_session(db_url, token)
+    return JSONResponse(content={"detail": "Logged out"})
+
+
+@api_router.post("/auth/change-password")
+def auth_change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+) -> JSONResponse:
+    db_url = request.app.state.db_url
+    repo = AuthRepository(db_url)
+    db_user = repo.get_user_by_username(user["username"])
+    if not db_user or not verify_password(payload.current_password, db_user["password_hash"]):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Current password is incorrect"},
+        )
+    repo.update_password(str(db_user["id"]), hash_password(payload.new_password))
+    return JSONResponse(content={"detail": "Password changed"})
+
+
+# ---------------------------------------------------------------------------
+# Admin (teacher-only)
+# ---------------------------------------------------------------------------
+
+@api_router.get("/admin/students", response_model=list[StudentResponse])
+def list_students(
+    request: Request,
+    user: dict = Depends(require_teacher),
+) -> list[StudentResponse]:
+    db_url = request.app.state.db_url
+    repo = AuthRepository(db_url)
+    rows = repo.list_students()
+    return [StudentResponse(id=str(r["id"]), username=r["username"], created_at=r["created_at"]) for r in rows]
+
+
+@api_router.post("/admin/students", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
+def create_student(
+    payload: CreateStudentRequest,
+    request: Request,
+    user: dict = Depends(require_teacher),
+) -> StudentResponse:
+    db_url = request.app.state.db_url
+    repo = AuthRepository(db_url)
+    hashed = hash_password(payload.password)
+    row = repo.create_user(
+        username=payload.username.strip().lower(),
+        password_hash=hashed,
+        role="student",
+    )
+    return StudentResponse(id=str(row["id"]), username=row["username"], created_at=row["created_at"])
+
+
+@api_router.delete("/admin/students/{username}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_student(
+    username: str,
+    request: Request,
+    user: dict = Depends(require_teacher),
+) -> None:
+    db_url = request.app.state.db_url
+    repo = AuthRepository(db_url)
+    repo.delete_user(username)
+
+
+# ---------------------------------------------------------------------------
+# Board
+# ---------------------------------------------------------------------------
 
 @api_router.get("/board", response_model=BoardResponse)
 def get_board(
-    username: str = Depends(get_current_username),
+    user: dict = Depends(get_current_user),
     service: BoardService = Depends(get_board_service),
+    student: str | None = Query(default=None),
 ) -> BoardResponse:
-    return service.get_board(username=username)
+    if student:
+        if user["role"] != "teacher":
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "Only teachers can view student boards"},
+            )
+        return service.get_board(username=student)
+    return service.get_board(username=user["username"])
 
 
 @api_router.put("/board", response_model=BoardResponse)
 def put_board(
     payload: BoardUpdateRequest,
-    username: str = Depends(get_current_username),
+    user: dict = Depends(get_current_user),
     service: BoardService = Depends(get_board_service),
 ) -> BoardResponse:
-    return service.update_board(username=username, state=payload.state)
+    return service.update_board(username=user["username"], state=payload.state)
 
+
+# ---------------------------------------------------------------------------
+# AI
+# ---------------------------------------------------------------------------
 
 @api_router.post("/ai/connectivity", response_model=AIConnectivityResponse)
 def ai_connectivity(
     payload: AIConnectivityRequest,
     request: Request,
-    username: str = Depends(get_current_username),
+    user: dict = Depends(get_current_user),
     service: AIService = Depends(get_ai_service),
 ) -> AIConnectivityResponse:
+    username = user["username"]
     board_context = None
     board_service = getattr(request.app.state, "board_service", None)
     if board_service is not None:
@@ -221,10 +349,11 @@ def _normalize_label(value: str) -> str:
 @api_router.post("/ai/chat", response_model=AIChatResponse)
 def ai_chat(
     payload: AIChatRequest,
-    username: str = Depends(get_current_username),
+    user: dict = Depends(get_current_user),
     board_service: BoardService = Depends(get_board_service),
     ai_service: AIService = Depends(get_ai_service),
 ) -> AIChatResponse:
+    username = user["username"]
     board = board_service.get_board(username=username)
     cards_by_id = board.state.get("cards", {})
     columns = board.state.get("columns", [])

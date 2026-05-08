@@ -21,14 +21,14 @@ describe("sendAIPrompt", () => {
       )
     );
 
-    const response = await sendAIPrompt("2+2?", "student1");
+    const response = await sendAIPrompt("2+2?", "test-token");
 
     expect(fetch).toHaveBeenCalledWith(
       "/api/ai/chat",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          "x-username": "student1",
+          Authorization: "Bearer test-token",
         }),
       })
     );
@@ -46,7 +46,7 @@ describe("sendAIPrompt", () => {
       })
     );
 
-    await expect(sendAIPrompt("hello", "teacher")).rejects.toThrow(
+    await expect(sendAIPrompt("hello", "test-token")).rejects.toThrow(
       "ANTHROPIC_API_KEY is not configured."
     );
   });

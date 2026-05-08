@@ -16,7 +16,7 @@ describe("AIChatSidebar", () => {
   });
 
   it("renders initial message and supports collapse/expand", async () => {
-    render(<AIChatSidebar username="user" onBoardMutated={vi.fn()} />);
+    render(<AIChatSidebar token="test-token" username="user" onBoardMutated={vi.fn()} />);
 
     expect(screen.getByText(/ask me something simple to verify ai connectivity/i)).toBeInTheDocument();
 
@@ -36,12 +36,12 @@ describe("AIChatSidebar", () => {
       board_state_version: 2,
     });
 
-    render(<AIChatSidebar username="user" onBoardMutated={onBoardMutated} />);
+    render(<AIChatSidebar token="test-token" username="user" onBoardMutated={onBoardMutated} />);
 
     await userEvent.type(screen.getByLabelText(/prompt/i), "move card");
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }));
 
-    expect(sendAIPromptMock).toHaveBeenCalledWith("move card", "user");
+    expect(sendAIPromptMock).toHaveBeenCalledWith("move card", "test-token");
     expect(await screen.findByText("Moved card successfully.")).toBeInTheDocument();
     expect(onBoardMutated).toHaveBeenCalledTimes(1);
   });
@@ -55,7 +55,7 @@ describe("AIChatSidebar", () => {
       board_state_version: 1,
     });
 
-    render(<AIChatSidebar username="user" onBoardMutated={onBoardMutated} />);
+    render(<AIChatSidebar token="test-token" username="user" onBoardMutated={onBoardMutated} />);
 
     await userEvent.type(screen.getByLabelText(/prompt/i), "summarize board");
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }));
@@ -73,7 +73,7 @@ describe("AIChatSidebar", () => {
         })
     );
 
-    render(<AIChatSidebar username="user" onBoardMutated={vi.fn()} />);
+    render(<AIChatSidebar token="test-token" username="user" onBoardMutated={vi.fn()} />);
 
     await userEvent.type(screen.getByLabelText(/prompt/i), "hello");
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }));

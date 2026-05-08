@@ -5,7 +5,7 @@ import type { Card } from "@/lib/kanban";
 
 type KanbanCardProps = {
   card: Card;
-  onDelete: (cardId: string) => void;
+  onDelete?: (cardId: string) => void;
 };
 
 export const KanbanCard = ({ card, onDelete }: KanbanCardProps) => {
@@ -39,14 +39,16 @@ export const KanbanCard = ({ card, onDelete }: KanbanCardProps) => {
             {card.details}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => onDelete(card.id)}
-          className="rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[var(--gray-text)] transition hover:border-[var(--stroke)] hover:text-[var(--navy-dark)]"
-          aria-label={`Delete ${card.title}`}
-        >
-          Remove
-        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(card.id)}
+            className="rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[var(--gray-text)] transition hover:border-[var(--stroke)] hover:text-[var(--navy-dark)]"
+            aria-label={`Delete ${card.title}`}
+          >
+            Remove
+          </button>
+        )}
       </div>
     </article>
   );

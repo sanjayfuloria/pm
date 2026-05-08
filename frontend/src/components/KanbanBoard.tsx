@@ -18,12 +18,18 @@ import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
 
 type KanbanBoardProps = {
   enableBackend?: boolean;
+  token?: string;
   username?: string;
+  readOnly?: boolean;
+  studentUsername?: string;
 };
 
 export const KanbanBoard = ({
   enableBackend = false,
+  token = "",
   username = "user",
+  readOnly = false,
+  studentUsername,
 }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData>(() => initialData);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -52,7 +58,7 @@ export const KanbanBoard = ({
       setIsLoadingBoard(true);
       setErrorMessage(null);
       try {
-        const response = await getBoard(username);
+        const response = await getBoard(token, studentUsername);
         if (isCancelled) {
           return;
         }
@@ -76,7 +82,7 @@ export const KanbanBoard = ({
     return () => {
       isCancelled = true;
     };
-  }, [enableBackend, username]);
+  }, [enableBackend, token, studentUsername]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -87,7 +93,7 @@ export const KanbanBoard = ({
   const cardsById = useMemo(() => board.cards, [board.cards]);
 
   const persistBoard = async (nextBoard: BoardData) => {
-    if (!enableBackend || !backendConnected) {
+    if (!enableBackend || !backendConnected || readOnly) {
       return;
     }
 
@@ -104,7 +110,7 @@ export const KanbanBoard = ({
       while (queuedBoardRef.current) {
         const stateToPersist = queuedBoardRef.current;
         queuedBoardRef.current = null;
-        await updateBoard(username, stateToPersist);
+        await updateBoard(token, stateToPersist);
       }
     } catch {
       setErrorMessage("Could not save board changes. Please retry.");
@@ -249,10 +255,10 @@ export const KanbanBoard = ({
         </header>
 
         <DndContext
-          sensors={sensors}
+          sensors={readOnly ? [] : sensors}
           collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+          onDragStart={readOnly ? undefined : handleDragStart}
+          onDragEnd={readOnly ? undefined : handleDragEnd}
         >
           <section className="grid gap-6 lg:grid-cols-5">
             {board.columns.map((column) => (
@@ -260,9 +266,9 @@ export const KanbanBoard = ({
                 key={column.id}
                 column={column}
                 cards={column.cardIds.map((cardId) => board.cards[cardId])}
-                onRename={handleRenameColumn}
-                onAddCard={handleAddCard}
-                onDeleteCard={handleDeleteCard}
+                onRename={readOnly ? undefined : handleRenameColumn}
+                onAddCard={readOnly ? undefined : handleAddCard}
+                onDeleteCard={readOnly ? undefined : handleDeleteCard}
               />
             ))}
           </section>

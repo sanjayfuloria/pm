@@ -9,9 +9,9 @@ import { NewCardForm } from "@/components/NewCardForm";
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
-  onRename: (columnId: string, title: string) => void;
-  onAddCard: (columnId: string, title: string, details: string) => void;
-  onDeleteCard: (columnId: string, cardId: string) => void;
+  onRename?: (columnId: string, title: string) => void;
+  onAddCard?: (columnId: string, title: string, details: string) => void;
+  onDeleteCard?: (columnId: string, cardId: string) => void;
 };
 
 export const KanbanColumn = ({
@@ -34,7 +34,7 @@ export const KanbanColumn = ({
       setTitleDraft(column.title);
       return;
     }
-    if (normalizedTitle !== column.title) {
+    if (normalizedTitle !== column.title && onRename) {
       onRename(column.id, normalizedTitle);
     }
   };
@@ -65,6 +65,7 @@ export const KanbanColumn = ({
                 event.currentTarget.blur();
               }
             }}
+            readOnly={!onRename}
             className="mt-3 w-full bg-transparent font-display text-lg font-semibold text-[var(--navy-dark)] outline-none"
             aria-label="Column title"
           />
@@ -76,7 +77,7 @@ export const KanbanColumn = ({
             <KanbanCard
               key={card.id}
               card={card}
-              onDelete={(cardId) => onDeleteCard(column.id, cardId)}
+              onDelete={onDeleteCard ? (cardId) => onDeleteCard(column.id, cardId) : undefined}
             />
           ))}
         </SortableContext>
@@ -86,9 +87,11 @@ export const KanbanColumn = ({
           </div>
         )}
       </div>
-      <NewCardForm
-        onAdd={(title, details) => onAddCard(column.id, title, details)}
-      />
+      {onAddCard && (
+        <NewCardForm
+          onAdd={(title, details) => onAddCard(column.id, title, details)}
+        />
+      )}
     </section>
   );
 };

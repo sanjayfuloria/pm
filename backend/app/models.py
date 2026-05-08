@@ -5,6 +5,33 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class LoginResponse(BaseModel):
+    token: str
+    username: str
+    role: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=1)
+
+
+class CreateStudentRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(default="changeme", min_length=1)
+
+
+class StudentResponse(BaseModel):
+    id: str
+    username: str
+    created_at: datetime
+
+
 class BoardUpdateRequest(BaseModel):
     state: dict[str, Any] = Field(description="Board state payload")
 

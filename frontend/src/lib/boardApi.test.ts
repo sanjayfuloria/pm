@@ -19,7 +19,7 @@ describe("boardApi", () => {
       new Response(JSON.stringify(mockBoardResponse), { status: 200 })
     );
 
-    const result = await getBoard("user");
+    const result = await getBoard("test-token");
 
     expect(fetch).toHaveBeenCalledWith(
       "/api/board",
@@ -36,7 +36,7 @@ describe("boardApi", () => {
     );
 
     const nextState = { columns: [{ id: "col-a", title: "A", cardIds: [] }], cards: {} };
-    const result = await updateBoard("user", nextState);
+    const result = await updateBoard("test-token", nextState);
 
     expect(fetch).toHaveBeenCalledWith(
       "/api/board",
@@ -55,6 +55,6 @@ describe("boardApi", () => {
       new Response(JSON.stringify({ detail: "No board" }), { status: 404 })
     );
 
-    await expect(getBoard("user")).rejects.toThrow("Request failed (404)");
+    await expect(getBoard("test-token")).rejects.toThrow("Request failed (404)");
   });
 });
