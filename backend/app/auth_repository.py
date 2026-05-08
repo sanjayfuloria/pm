@@ -62,6 +62,17 @@ class AuthRepository:
         except psycopg.Error as exc:
             raise PersistenceError(f"Failed to update password: {exc}") from exc
 
+    def update_role(self, user_id: str, role: str) -> None:
+        try:
+            with psycopg.connect(self._db_url, autocommit=True) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "update app_users set role = %s where id = %s",
+                        (role, user_id),
+                    )
+        except psycopg.Error as exc:
+            raise PersistenceError(f"Failed to update role: {exc}") from exc
+
     def delete_user(self, username: str) -> None:
         try:
             with psycopg.connect(self._db_url, autocommit=True) as conn:

@@ -58,7 +58,10 @@ def seed_default_teacher(db_url: str) -> None:
         return
     hashed = hash_password("changeme")
     if existing:
-        repo.update_password(existing["id"], hashed)
+        repo.update_password(str(existing["id"]), hashed)
+        # Ensure role is teacher (might be 'student' if user existed before migration)
+        if existing.get("role") != "teacher":
+            repo.update_role(str(existing["id"]), "teacher")
     else:
         repo.create_user(username="teacher", password_hash=hashed, role="teacher")
 
@@ -100,11 +103,13 @@ except Exception as exc:
     _ai_init_error = str(exc)
     app.state.ai_service = None
 
+_seed_error: str | None = None
 try:
     if _settings.supabase_db_url:
         seed_default_teacher(_settings.supabase_db_url)
-except Exception:
+except Exception as exc:
     logger.exception("Failed to seed default teacher account")
+    _seed_error = str(exc)
 
 
 @app.exception_handler(NotFoundError)
@@ -160,6 +165,8 @@ def healthcheck() -> dict[str, str]:
         result["board_init_error"] = _board_init_error
     if _ai_init_error:
         result["ai_init_error"] = _ai_init_error
+    if _seed_error:
+        result["seed_error"] = _seed_error
     return result
 
 
