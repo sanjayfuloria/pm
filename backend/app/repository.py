@@ -109,7 +109,7 @@ class BoardRepository:
 
                 conn.commit()
         except psycopg.Error as exc:
-            raise PersistenceError("Failed to apply migrations") from exc
+            raise PersistenceError(f"Failed to apply migrations: {exc}") from exc
 
     def _create_board_if_missing(self, username: str) -> None:
         try:
